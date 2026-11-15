@@ -8,6 +8,8 @@ import { t, tn } from '../lib/i18n.js'
 import { todayISO, fmtDate } from '../lib/format.js'
 import { reportRange } from '../lib/report.js'
 import { workoutsCSV, bodyCSV, csvCounts } from '../lib/export-csv.js'
+import { wellbeingCSV, foodsCSV, wellbeingCounts } from '../lib/wellbeing-csv.js'
+import { isOn } from '../lib/modules.js'
 import { MOBILE, shareExport } from '../lib/mobile.js'
 import { Button, Segmented, Row } from './ui.jsx'
 import DateField from './DateField.jsx'
@@ -30,10 +32,12 @@ export function CsvExportSheet({ close }) {
   // "All" is no range at all, so a first workout from years ago is in without picking a date.
   const r = range === 'all' ? { from: null, to: null } : reportRange(range, { from, to, today })
   const counts = csvCounts(S, r)
+  const wb = isOn(S, 'wellbeing') ? wellbeingCounts(S, r) : null
   const save = async (kind) => {
     const st = useStore.getState().S
-    const text = kind === 'body' ? bodyCSV(st, r) : workoutsCSV(st, r)
-    const name = 'opengym-' + (kind === 'body' ? 'body' : 'workouts') + '-' + today + '.csv'
+    // Fork: the Wellbeing day file and the foods file (lib/wellbeing-csv.js), labels in the reader's language.
+    const text = kind === 'body' ? bodyCSV(st, r) : kind === 'wellbeing' ? wellbeingCSV(st, r, t) : kind === 'foods' ? foodsCSV(st, r, t) : workoutsCSV(st, r)
+    const name = 'opengym-' + (['body', 'wellbeing', 'foods'].includes(kind) ? kind : 'workouts') + '-' + today + '.csv'
     close()
     try { await saveCSV(text, name); toast?.(t('CSV exported')) } catch (e) { /* share sheet dismissed */ }
   }
@@ -66,6 +70,17 @@ export function CsvExportSheet({ close }) {
     <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="body">
       {tn('{0} weigh-in', '{0} weigh-ins', counts.weighIns) + (counts.measurements ? ' · ' + tn('{0} measurement', '{0} measurements', counts.measurements) : '')}
     </div>
+    {wb && <>
+      <div style={{ height: 12 }} />
+      <Button icon="share" onClick={() => save('wellbeing')}>{t('Wellbeing by day (CSV)')}</Button>
+      <div className="small dim" style={{ margin: '4px 2px 12px' }} data-csv-count="wellbeing">
+        {t('Mood, calories, symptoms, supplements and habits: {0} days', wb.days)}
+      </div>
+      <Button icon="share" onClick={() => save('foods')}>{t('Foods (CSV)')}</Button>
+      <div className="small dim" style={{ margin: '4px 2px 0' }} data-csv-count="foods">
+        {t('One row per food eaten: {0} foods', wb.foods)}
+      </div>
+    </>}
   </>
 }
 

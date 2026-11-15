@@ -1247,7 +1247,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
         {hasMedia && <Row icon="share" iconTint="var(--blue)" title={t('Export with photos & videos (.zip)')} accessory="chevron" onClick={doExportZip} />}
         <Row icon="note" iconTint="var(--green)" title={t('Performance report (PDF)')} subtitle={t('Charts, totals and every workout of the last days or weeks.')} accessory="chevron" onClick={reportSheet} />
         {/* One row per set for spreadsheets and other apps (#647); our own importer reads it back. */}
-        <Row icon="share" iconTint="var(--green)" title={t('Export as spreadsheet (CSV)')} subtitle={t('Workouts, body weight and measurements')} accessory="chevron" onClick={csvExportSheet} tour="data-csv" />
+        <Row icon="share" iconTint="var(--green)" title={t('Export as spreadsheet (CSV)')} subtitle={on('wellbeing') ? t('Workouts, body weight, measurements and Wellbeing') : t('Workouts, body weight and measurements')} accessory="chevron" onClick={csvExportSheet} tour="data-csv" />
         {/* A daily copy in a WebDAV folder of your own (#582), the same sheet as Integrations'. */}
         {!DEMO && !offline && <WebDavRow />}
         {/* 14 is AUTO_BACKUP_KEEP in lib/mobile.js, written out because the Settings tests mock
