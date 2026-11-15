@@ -9,8 +9,9 @@ import { csvField } from './export-csv.js'
 import { trainedDays } from './wellbeing-insights.js'
 import {
   MOOD_LABEL, MEAL_LABEL, SEVERITY_LABEL, moodOf, reasonList, symptomList, symptomsOf, suppList, suppCountsOn,
-  habitList, habitsDoneOn, foodsOn, dayTotals,
+  habitList, habitsDoneOn, foodsOn, dayTotals, doseText,
 } from './wellbeing.js'
+import { dayNutrition, waterOn } from './nutrition.js'
 
 const line = cells => cells.map(csvField).join(',')
 // The BOM is for Excel, which reads UTF-8 without one as the system code page.
@@ -25,8 +26,9 @@ export function wellbeingDays(S, { from = null, to = null } = {}) {
   for (const k of ['wbMood', 'wbSymptoms', 'wbHabits', 'wbSupps']) for (const d of Object.keys(isMap(S?.[k]) ? S[k] : {})) add(d)
   for (const e of Object.values(isMap(S?.wbFood) ? S.wbFood : {})) add(e?.d)
   // A key can be a cleared day ({ _ts }); keep only days that still hold something.
+  for (const d of Object.keys(isMap(S?.wbWater) ? S.wbWater : {})) add(d)
   return [...days].sort().filter(d => moodOf(S, d) || symptomsOf(S, d) || habitsDoneOn(S, d).length
-    || Object.keys(suppCountsOn(S, d)).length || dayTotals(S, d).count)
+    || Object.keys(suppCountsOn(S, d)).length || dayTotals(S, d).count || waterOn(S, d))
 }
 
 /** One row per logged day. `tr` translates an English source string (the app's t). */
@@ -38,12 +40,14 @@ export function wellbeingCSV(S, range = {}, tr = s => s) {
   const supps = suppList(S)
   const habits = habitList(S)
   const trained = trainedDays(S)
-  const header = ['date', 'trained', 'mood', 'mood_label', 'mood_reasons', 'mood_note', 'kcal', 'protein_g', 'foods', 'symptoms',
-    ...supps.map(x => 'supplement: ' + named(x) + (x.dose ? ` (${x.dose})` : '') + (x.times > 1 ? ` x${x.times}` : '')),
+  const header = ['date', 'trained', 'mood', 'mood_label', 'mood_reasons', 'mood_note', 'kcal', 'protein_g', 'foods',
+    'kcal_target', 'maintenance', 'deficit_kcal', 'water_ml', 'symptoms',
+    ...supps.map(x => 'supplement: ' + named(x) + (doseText(x, tr) ? ` (${doseText(x, tr)})` : '') + (x.times > 1 ? ` x${x.times}` : '')),
     ...habits.map(h => 'habit: ' + named(h))]
   const rows = days.map(d => {
     const m = moodOf(S, d)
-    const tot = dayTotals(S, d)
+    const tot = dayNutrition(S, d, { trained })
+    const r = tot.target
     const sym = symptomsOf(S, d)?.s || {}
     const counts = suppCountsOn(S, d)
     const done = habitsDoneOn(S, d)
@@ -51,7 +55,9 @@ export function wellbeingCSV(S, range = {}, tr = s => s) {
       d, trained.has(d) ? 1 : 0,
       m ? m.mood : '', m ? tr(MOOD_LABEL[m.mood]) : '',
       m ? m.reasons.map(r => reasons.get(r) || r).join('; ') : '', m?.note || '',
-      tot.count ? tot.kcal : '', num(tot.protein), tot.count || '',
+      tot.count ? tot.kcal : '', num(tot.protein), tot.foods || '',
+      r ? (r.min != null && r.max != null && r.min !== r.max ? `${r.min}-${r.max}` : String(r.max ?? r.min)) : '',
+      tot.goals?.maint ?? '', tot.deficit ?? '', tot.water || '',
       Object.entries(sym).map(([id, v]) => `${symptoms.get(id) || id}: ${tr(SEVERITY_LABEL[v])}`).join('; '),
       ...supps.map(x => (counts[x.id] ? `${counts[x.id]}/${x.times}` : `0/${x.times}`)),
       ...habits.map(h => (done.includes(h.id) ? 1 : 0)),

@@ -178,3 +178,44 @@
 .wb-times-pick .chip{min-width:44px;justify-content:center}
 .wb-form label:has(.wb-times-pick){flex-direction:column;align-items:flex-start}
 .wb-hrow-n{display:flex;flex-direction:column;gap:2px;cursor:pointer}
+
+/* Nutrition goals, deficit and water */
+.wb-bar.in span{background:var(--green)}
+.wb-status{margin-top:2px;color:var(--label-2)}
+.wb-status.in{color:var(--green)}
+.wb-status.over{color:var(--orange)}
+.wb-daykind{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:99px;background:rgba(128,128,128,.16);background:color-mix(in srgb,currentColor 10%,transparent);color:var(--label-2)}
+.wb-daykind.tr{color:var(--acc-ink)}
+.wb-deficit{display:flex;flex-direction:column;gap:2px;margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(48,209,88,.12);background:color-mix(in srgb,var(--green) 12%,transparent)}
+.wb-deficit.plus{background:rgba(255,159,10,.12);background:color-mix(in srgb,var(--orange) 12%,transparent)}
+.wb-deficit-n{font-weight:700;color:var(--green)}
+.wb-deficit.plus .wb-deficit-n{color:var(--orange)}
+.wb-macro{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;margin-top:12px;font-size:.9rem}
+.wb-macro-v{font-weight:600}
+.wb-macro .wb-bar{grid-column:1/-1;height:6px;margin:4px 0 0}
+.wb-setgoals{margin-top:12px}
+.wb-quality{display:flex;gap:6px;align-items:flex-start;margin-top:10px}
+.wb-quality svg{flex:none;width:16px;height:16px;margin-top:1px}
+.wb-glasses{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 12px}
+.wb-glass{width:36px;height:40px;border-radius:10px;border:0;display:grid;place-items:center;background:rgba(128,128,128,.14);background:color-mix(in srgb,currentColor 8%,transparent);color:var(--label-3,var(--label-2));cursor:pointer}
+.wb-glass svg{width:20px;height:20px}
+.wb-glass.on{background:rgba(10,132,255,.18);background:color-mix(in srgb,var(--blue) 18%,transparent);color:var(--blue)}
+.wb-glass.on svg{fill:currentColor}
+.wb-water-btns{display:flex;gap:8px}
+.wb-water-btns .btn:first-child{width:auto;flex:none;min-width:52px}
+.wb-water-btns .btn:last-child{flex:1}
+.wb-goals .wb-gsec{font-weight:700;margin-top:10px;font-size:.95rem}
+.wb-goals label:has(.wb-range){flex-wrap:wrap}
+.wb-range{display:inline-flex;align-items:center;gap:6px}
+.wb-range .field,.wb-range input{max-width:84px}
+.wb-range i{font-style:normal;color:var(--label-2)}
+.linkbtn{background:none;border:0;padding:0;color:var(--acc-ink);font:inherit;cursor:pointer;text-align:start;text-decoration:underline}
+.wb-defbars{width:100%;height:auto;margin-top:14px;display:block}
+.wb-defaxis{stroke:var(--label-2);stroke-width:.5;opacity:.5}
+.wb-defbars .def{fill:var(--green)}
+.wb-defbars .sur{fill:var(--orange)}
+.wb-sw.def{background:var(--green)}
+.wb-sw.sur{background:var(--orange)}
+.wb-goals .wb-favrow{justify-content:flex-start}
+.wbc-def{color:var(--green)}
+.wbc-sur{color:var(--orange)}

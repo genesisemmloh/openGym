@@ -16,7 +16,7 @@
 //   S.wbSymptomDefs = { [symptomId]: { name, _ts } }                                          symptoms of your own
 //   S.kcalGoal   = number | null                                                               a plain setting
 
-export const WB_MAPS = ['wbFood', 'wbMood', 'wbSymptoms', 'wbHabits', 'wbHabitDefs', 'wbSymptomDefs', 'wbSupps', 'wbSuppDefs', 'wbFoodFavs', 'wbReasonDefs']
+export const WB_MAPS = ['wbFood', 'wbMood', 'wbSymptoms', 'wbHabits', 'wbHabitDefs', 'wbSymptomDefs', 'wbSupps', 'wbSuppDefs', 'wbFoodFavs', 'wbReasonDefs', 'wbGoals', 'wbWater']
 
 export const MOODS = [1, 2, 3, 4, 5]
 export const MOOD_LABEL = { 1: 'Very bad', 2: 'Bad', 3: 'Okay', 4: 'Good', 5: 'Very good' }
@@ -166,17 +166,22 @@ export function withOwnSymptom(map, id, name, now = Date.now()) {
  * A list stored in `map` as { [id]: { name, dose?, std?, order, _ts } }, in order. An empty map (never
  * edited) is the defaults. `std` marks a name that is an English source string, shown translated.
  */
+const pick = d => (d ? { ...(d.kcal ? { kcal: d.kcal } : {}), ...(d.protein ? { protein: d.protein } : {}) } : {})
 function listOf(map, defaults, withDose) {
   const entries = Object.entries(isMap(map) ? map : {})
-  const extra = e => (withDose ? { dose: str(e?.dose, DOSE_MAX), times: timesOf(e?.times) } : {})
+  const extra = e => (withDose ? suppExtra(e) : {})
   if (!entries.length) return defaults.map((x, i) => ({ id: x.id, name: x.name, ...extra(x), std: true, order: i }))
   return entries
-    .map(([id, e]) => ({ id, name: str(e?.name, NAME_MAX), ...extra(e), std: e?.std === true, order: Number(e?.order) || 0, _ts: Number(e?._ts) || 0 }))
+    // A suggested supplement stored before kinds existed takes the suggestion's kcal and protein.
+    .map(([id, e]) => ({ id, name: str(e?.name, NAME_MAX), ...extra(withDose && e?.std === true && !e.kind ? { ...pick(defaults.find(d => d.id === id)), ...e } : e), std: e?.std === true, order: Number(e?.order) || 0, _ts: Number(e?._ts) || 0 }))
     .filter(x => x.name)
     .sort((a, b) => a.order - b.order || a._ts - b._ts)
     .map(({ _ts, ...x }) => x)
 }
-const defOf = (n, d, std, order, now, times = 1) => ({ name: n, ...(d ? { dose: d } : {}), ...(timesOf(times) > 1 ? { times: timesOf(times) } : {}), ...(std ? { std: true } : {}), order: Number(order) || 0, _ts: now })
+const defOf = (n, d, std, order, now, times = 1, more = null) => ({
+  name: n, ...(d ? { dose: d } : {}), ...(timesOf(times) > 1 ? { times: timesOf(times) } : {}), ...(more ? cleanSuppMore(more) : {}),
+  ...(std ? { std: true } : {}), order: Number(order) || 0, _ts: now,
+})
 
 /**
  * `map` with the list as it shows now written out item by item: done before the first edit of a
@@ -185,7 +190,7 @@ const defOf = (n, d, std, order, now, times = 1) => ({ name: n, ...(d ? { dose: 
 export function materialize(map, list, now = Date.now()) {
   if (isMap(map) && Object.keys(map).length) return map
   const out = {}
-  for (const x of list) out[x.id] = defOf(x.name, x.dose, x.std, x.order, now, x.times)
+  for (const x of list) out[x.id] = defOf(x.name, x.dose, x.std, x.order, now, x.times, x.kind ? x : null)
   return out
 }
 
@@ -219,31 +224,92 @@ export function withHabitToggled(map, iso, done, id, now = Date.now()) {
 
 /* ---------------- supplements ---------------- */
 
-// Supplements and medicine, each with an optional dose ("2000 IU", "1 tablet") and how many times
-// a day it is taken. Every tap on a day adds one intake; the day is complete at `times`, and one
-// more tap starts it over (a mistap is one tap away from undone).
-//   S.wbSuppDefs = { [suppId]: { name, dose?, times?, order, _ts } }
+// Supplements and medicine, each with a dose (an amount and its unit: 30 g, 2000 IU, 1 tablet) and
+// how many times a day it is taken. Every tap on a day adds one intake; the day is complete at
+// `times`, and one more tap starts it over (a mistap is one tap away from undone).
+// A supplement may carry kcal and protein per intake (a protein shake); each intake taken counts
+// toward the day's food (dayTotals). A medicine never does.
+//   S.wbSuppDefs = { [suppId]: { name, kind?, amount?, unit?, dose?, kcal?, protein?, times?, order, _ts } }
 //   S.wbSupps    = { [iso]: { counts: { [suppId]: n }, _ts } }   (older days: { taken: [suppId] }, read as complete)
+// `dose` is the text of the first version ("30 g"); an entry without `amount` is read from it.
+
+export const SUPP_KINDS = ['supp', 'med']
+export const DOSE_UNITS = ['g', 'mg', 'µg', 'ml', 'IU', 'tablet', 'capsule', 'drops', 'scoop']
+export const UNIT_LABEL = { tablet: 'tablet', capsule: 'capsule', drops: 'drops', scoop: 'scoop' }
 
 /** The supplements list starts with these; SUPP_MORE are offered in the editor. English source strings. */
 export const SUPP_DEFAULTS = [
-  { id: 'vitd', name: 'Vitamin D', dose: '2000 IU' }, { id: 'magnesium', name: 'Magnesium', dose: '300 mg' },
-  { id: 'creatine', name: 'Creatine', dose: '5 g' }, { id: 'protein', name: 'Protein powder', dose: '30 g' },
-  { id: 'omega3', name: 'Omega-3', dose: '1 g' }, { id: 'multi', name: 'Multivitamin', dose: '' },
-]
-export const SUPP_MORE = [{ id: 'zinc', name: 'Zinc', dose: '15 mg' }, { id: 'vitc', name: 'Vitamin C', dose: '500 mg' }]
+  { id: 'vitd', name: 'Vitamin D', amount: 2000, unit: 'IU' }, { id: 'magnesium', name: 'Magnesium', amount: 300, unit: 'mg' },
+  { id: 'creatine', name: 'Creatine', amount: 5, unit: 'g' }, { id: 'protein', name: 'Protein powder', amount: 30, unit: 'g', kcal: 120, protein: 24 },
+  { id: 'omega3', name: 'Omega-3', amount: 1, unit: 'g' }, { id: 'multi', name: 'Multivitamin', amount: 1, unit: 'tablet' },
+].map(x => ({ kind: 'supp', ...x }))
+export const SUPP_MORE = [
+  { id: 'zinc', name: 'Zinc', amount: 15, unit: 'mg' }, { id: 'vitc', name: 'Vitamin C', amount: 500, unit: 'mg' },
+].map(x => ({ kind: 'supp', ...x }))
 export const SUPP_IDEAS = [...SUPP_DEFAULTS, ...SUPP_MORE]
 export const DOSE_MAX = 30
+
+/** "30 g" → { amount: 30, unit: 'g' }; anything else → { amount: null, unit: null }. */
+export function parseDose(s) {
+  const m = /^\s*(\d+(?:[.,]\d+)?)\s*([^\d\s].*)?$/.exec(String(s || ''))
+  if (!m) return { amount: null, unit: null }
+  const amount = Number(m[1].replace(',', '.'))
+  const raw = (m[2] || '').trim().toLowerCase()
+  const unit = DOSE_UNITS.find(u => u.toLowerCase() === raw) || (raw === 'ui' ? 'IU' : raw === 'mcg' || raw === 'ug' ? 'µg' : /^tab/.test(raw) ? 'tablet' : /^cap/.test(raw) ? 'capsule' : null)
+  return { amount: Number.isFinite(amount) ? amount : null, unit }
+}
+
+/** The fields of a supplement beyond its name, cleaned: kind, amount, unit, kcal, protein. */
+function cleanSuppMore(e) {
+  const out = {}
+  if (SUPP_KINDS.includes(e.kind)) out.kind = e.kind
+  const amount = num(e.amount, 0, 100000); if (amount != null && amount > 0) out.amount = amount
+  if (DOSE_UNITS.includes(e.unit)) out.unit = e.unit
+  if (out.kind !== 'med') {
+    const kcal = num(e.kcal, 0, 5000); if (kcal) out.kcal = Math.round(kcal)
+    const protein = num(e.protein, 0, 500); if (protein) out.protein = protein
+  }
+  return out
+}
+
+/** The dose as text: amount and unit, else the text of the first version. */
+export const doseText = (x, tr = s => s) => (x.amount ? `${x.amount} ${UNIT_LABEL[x.unit] ? tr(UNIT_LABEL[x.unit]) : x.unit || ''}`.trim() : x.dose || '')
+
+function suppExtra(e) {
+  const more = cleanSuppMore(e || {})
+  const parsed = more.amount ? {} : parseDose(e?.dose)
+  return {
+    kind: more.kind || 'supp',
+    amount: more.amount ?? parsed.amount ?? null, unit: more.unit ?? parsed.unit ?? null,
+    dose: str(e?.dose, DOSE_MAX), kcal: more.kcal ?? null, protein: more.protein ?? null, times: timesOf(e?.times),
+  }
+}
 
 /** Your supplements, in their order: [{ id, name, dose, std, order }]. */
 export const suppList = S => listOf(S?.wbSuppDefs, SUPP_DEFAULTS, true)
 
-/** S.wbSuppDefs with supplement `id` set (an empty name removes it), taken `times` a day. */
-export function withSuppDef(map, id, name, dose, order, now = Date.now(), std = false, times = 1) {
+/**
+ * S.wbSuppDefs with supplement `id` set (an empty name removes it), taken `times` a day. `more` is
+ * { kind, amount, unit, kcal, protein }; given an amount, the dose text is written from it.
+ */
+export function withSuppDef(map, id, name, dose, order, now = Date.now(), std = false, times = 1, more = null) {
   const n = str(name, NAME_MAX)
-  const d = str(dose, DOSE_MAX)
+  const m = more ? cleanSuppMore(more) : null
+  const d = m?.amount ? doseText(m) : str(dose, DOSE_MAX)
   const base = materialize(map, listOf(map, SUPP_DEFAULTS, true), now)
-  return stamp(base, id, n ? defOf(n, d, std, order, now, times) : { _ts: now })
+  return stamp(base, id, n ? defOf(n, d, std, order, now, times, m) : { _ts: now })
+}
+
+/** kcal and protein the supplements of `iso` add to the day: each intake taken, supplements only. */
+export function suppNutritionOn(S, iso) {
+  const counts = suppCountsOn(S, iso)
+  let kcal = 0, protein = 0, items = 0
+  for (const x of suppList(S)) {
+    const n = counts[x.id] || 0
+    if (!n || x.kind === 'med' || (!x.kcal && !x.protein)) continue
+    kcal += n * (x.kcal || 0); protein += n * (x.protein || 0); items++
+  }
+  return { kcal: Math.round(kcal), protein: Math.round(protein * 10) / 10, items }
 }
 
 /** How many intakes of each supplement `iso` has: { [suppId]: n }, only ones that still exist, capped at their times. */
@@ -309,13 +375,18 @@ export function foodsOn(S, iso) {
   return out.sort((a, b) => MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal) || a._ts - b._ts)
 }
 
-/** { kcal, protein, count } of a day. Protein is null when nothing logged carries it. */
+/**
+ * { kcal, protein, count, foods, suppKcal, suppProtein } of a day: the foods eaten plus the
+ * supplements taken that carry kcal or protein. `count` is both together (what makes a day "logged"),
+ * `foods` the foods alone. Protein is null when nothing logged carries it.
+ */
 export function dayTotals(S, iso) {
   const foods = foodsOn(S, iso)
-  const kcal = foods.reduce((a, f) => a + f.kcal, 0)
+  const sup = suppNutritionOn(S, iso)
+  const kcal = foods.reduce((a, f) => a + f.kcal, 0) + sup.kcal
   const withP = foods.filter(f => f.protein != null)
-  const protein = withP.length ? Math.round(withP.reduce((a, f) => a + f.protein, 0)) : null
-  return { kcal, protein, count: foods.length }
+  const protein = withP.length || sup.protein ? Math.round(withP.reduce((a, f) => a + f.protein, 0) + sup.protein) : null
+  return { kcal, protein, count: foods.length + sup.items, foods: foods.length, suppKcal: sup.kcal, suppProtein: sup.protein }
 }
 
 /** kcal from a per-100 g value and grams, rounded. */

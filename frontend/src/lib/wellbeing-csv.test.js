@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { wellbeingCSV, foodsCSV, wellbeingDays, wellbeingCounts } from './wellbeing-csv.js'
+import { withGoals, withWater } from './nutrition.js'
 import { withMood, withSymptoms, withFood, withSuppDef, withSuppTap, withHabitDef, withHabitToggled } from './wellbeing.js'
 
 const D1 = '2026-11-10', D2 = '2026-11-11', D3 = '2026-11-12'
@@ -17,6 +18,8 @@ function sample() {
   S.wbSupps = withSuppTap({}, D1, {}, 'p', 3, 1)
   S.wbHabits = withHabitToggled({}, D1, [], 'water', 1)
   S.wbMood = withMood(S.wbMood, D3, null, 5) // a cleared day is not a logged day
+  S.wbGoals = withGoals({}, D1, { kcal: { min: 1800, max: 2200 }, maint: 2500 }, 1)
+  S.wbWater = withWater({}, D2, 1500, 1)
   return S
 }
 
@@ -30,9 +33,9 @@ describe('wellbeing CSV', () => {
 
   it('writes one row per day with mood, reasons, food, symptoms, intakes and habits', () => {
     const rows = rowsOf(wellbeingCSV(sample(), {}, s => (s === 'Good' ? 'Bien' : s)))
-    expect(rows[0]).toBe('date,trained,mood,mood_label,mood_reasons,mood_note,kcal,protein_g,foods,symptoms,supplement: Pain pill (1 tablet) x3,supplement: Whey (30 g),habit: Water,habit: Read')
-    expect(rows[1]).toBe('2026-11-10,1,4,Bien,Work; Sleep,"Good, day",290,7,2,,1/3,0/1,1,0')
-    expect(rows[2]).toBe('2026-11-11,0,,,,,,,,Headache: Severe,0/3,0/1,0,0')
+    expect(rows[0]).toBe('date,trained,mood,mood_label,mood_reasons,mood_note,kcal,protein_g,foods,kcal_target,maintenance,deficit_kcal,water_ml,symptoms,supplement: Pain pill (1 tablet) x3,supplement: Whey (30 g),habit: Water,habit: Read')
+    expect(rows[1]).toBe('2026-11-10,1,4,Bien,Work; Sleep,"Good, day",290,7,2,1800-2200,2500,2210,,,1/3,0/1,1,0')
+    expect(rows[2]).toBe('2026-11-11,0,,,,,,,,1800-2200,2500,,1500,Headache: Severe,0/3,0/1,0,0')
   })
 
   it('writes one row per food and keeps a formula-looking name as text', () => {

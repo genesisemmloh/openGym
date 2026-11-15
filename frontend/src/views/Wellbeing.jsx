@@ -11,11 +11,15 @@ import {
   MOODS, MOOD_LABEL, MOOD_FACE, REASON_LABEL, reasonList, hiddenReasons, withReasonShown, withOwnReason, SEVERITY_LABEL, MEALS, MEAL_LABEL, NOTE_MAX, NAME_MAX,
   moodOf, withMood, symptomList, symptomsOf, withSymptoms, nextSeverity, withOwnSymptom,
   habitList, withHabitDef, habitsDoneOn, withHabitToggled, HABIT_DEFAULTS, SYMPTOM_LABEL, hiddenSymptoms, withSymptomShown,
-  SUPP_IDEAS, DOSE_MAX, TIMES_MAX, suppList, withSuppDef, suppCountsOn, withSuppTap,
-  foodsOn, withFood, dayTotals, kcalFor, recentFoods, kcalGoalOf, shiftDay, periodRange, shiftPeriod,
+  SUPP_IDEAS, DOSE_MAX, TIMES_MAX, DOSE_UNITS, UNIT_LABEL, doseText, suppList, withSuppDef, suppCountsOn, withSuppTap,
+  foodsOn, withFood, kcalFor, recentFoods, shiftDay, periodRange, shiftPeriod,
   favFoods, isFavFood, withFav, myFoodsMatching,
 } from '../lib/wellbeing.js'
-import { rangeRows, daysBetween, monthSummary, monthInsights } from '../lib/wellbeing-insights.js'
+import { rangeRows, daysBetween, monthSummary, monthInsights, trainedDays } from '../lib/wellbeing-insights.js'
+import {
+  dayNutrition, periodNutrition, goalsOn, withGoals, waterOn, applyWater, glassOf, waterAim, GLASS_ML,
+  weightKg, proteinFromKg, maintEstimate,
+} from '../lib/nutrition.js'
 import { searchFoods } from '../lib/food-search.js'
 import { searchBasic } from '../lib/basic-foods.js'
 import './Wellbeing.css'
@@ -55,6 +59,7 @@ function DayView() {
     </div>
     <MoodCard S={S} day={day} />
     <FoodCard S={S} day={day} />
+    <WaterCard S={S} day={day} />
     <SupplementsCard S={S} day={day} />
     <SymptomsCard S={S} day={day} />
     <HabitsCard S={S} day={day} />
@@ -156,8 +161,8 @@ function SupplementsCard({ S, day }) {
         return <button key={x.id} type="button" className={'chip nocap wb-tick wb-intake' + (done ? ' on' : '')} aria-pressed={done}
           style={!done && n > 0 ? { '--fill': pct + '%' } : undefined}
           aria-label={`${shown(x)}, ${t('{0} of {1} today', n, x.times)}`} onClick={() => tap(x)}>
-          {done && <Icon name="check" />}{shown(x)}
-          {x.dose ? <span className="wb-dose-l">{x.dose}</span> : null}
+          {done && <Icon name="check" />}{x.kind === 'med' && <Icon name="pill" className="wb-med" />}{shown(x)}
+          {doseText(x, t) ? <span className="wb-dose-l">{doseText(x, t)}</span> : null}
           {x.times > 1 && <span className="wb-times">{n}/{x.times}</span>}
         </button>
       })}
@@ -173,23 +178,56 @@ function HabitsCard({ S, day }) {
 }
 
 
+const nf = v => Math.round(Number(v)).toLocaleString(dateLocale())
+/** "1,850–2,250", "up to 2,250" or "at least 1,850". */
+function rangeText(r, f = nf) {
+  if (!r) return ''
+  if (r.min != null && r.max != null) return r.min === r.max ? f(r.max) : `${f(r.min)}–${f(r.max)}`
+  return r.max != null ? t('up to {0}', f(r.max)) : t('at least {0}', f(r.min))
+}
+const litres = ml => (Math.round(ml / 10) / 100).toLocaleString(dateLocale(), { maximumFractionDigits: 2 })
+const rangeL = r => rangeText(r, litres)
+
+/** A bar that fills to `v` out of the top of `r`, coloured by where it sits. */
+function GoalBar({ v, r, status }) {
+  const top = r?.max ?? r?.min
+  if (!top) return null
+  return <div className={'wb-bar' + (status === 'over' ? ' over' : status === 'in' ? ' in' : '')}><span style={{ width: Math.min(100, Math.round(v / top * 100)) + '%' }} /></div>
+}
+
 function FoodCard({ S, day }) {
+  const today = todayISO()
   const foods = foodsOn(S, day)
-  const tot = dayTotals(S, day)
-  const goal = kcalGoalOf(S)
-  const pct = goal ? Math.min(100, Math.round(tot.kcal / goal * 100)) : 0
+  const n = dayNutrition(S, day, { today, trained: trainedDays(S) })
+  const g = n.goals
   const remove = id => save(s => { s.wbFood = withFood(s.wbFood, id, null) })
+  const statusLine = !n.count || !n.target ? null
+    : n.status === 'under' ? t('{0} kcal to reach your range', nf(n.target.min - n.kcal))
+      : n.status === 'over' ? t('{0} kcal over your range', nf(n.kcal - n.target.max))
+        : t('Inside your range')
   return <section className="card wb-card">
     <h2 className="wb-h"><Icon name="flame" />{t('Food')}
-      <button className="iconbtn wb-h-btn" onClick={() => goalSheet()} aria-label={t('Daily calorie goal')}><Icon name="target" /></button>
+      {g?.kcalRest && <span className={'wb-daykind' + (n.training ? ' tr' : '')}>{n.training ? t('Training day') : t('Rest day')}</span>}
+      <button className="iconbtn wb-h-btn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" /></button>
     </h2>
     <div className="wb-kcal">
-      <span className="wb-kcal-n">{tot.kcal.toLocaleString(dateLocale())}</span>
-      <span className="dim">{goal ? t('of {0} kcal', goal.toLocaleString(dateLocale())) : 'kcal'}</span>
-      {tot.protein != null && <span className="wb-prot">{t('{0} g protein', tot.protein)}</span>}
+      <span className="wb-kcal-n">{nf(n.kcal)}</span>
+      <span className="dim">{n.target ? t('of {0} kcal', rangeText(n.target)) : 'kcal'}</span>
     </div>
-    {goal && <div className={'wb-bar' + (tot.kcal > goal ? ' over' : '')}><span style={{ width: pct + '%' }} /></div>}
-    {goal && <div className="small dim">{tot.kcal <= goal ? t('{0} kcal left', (goal - tot.kcal).toLocaleString(dateLocale())) : t('{0} kcal over', (tot.kcal - goal).toLocaleString(dateLocale()))}</div>}
+    <GoalBar v={n.kcal} r={n.target} status={n.status} />
+    {n.suppKcal > 0 && <div className="small dim">{t('Includes {0} kcal from supplements', nf(n.suppKcal))}</div>}
+    {statusLine && <div className={'small wb-status ' + (n.status || '')}>{statusLine}</div>}
+    {n.deficit != null && <div className={'wb-deficit' + (n.deficit < 0 ? ' plus' : '')}>
+      <span className="wb-deficit-n">{n.deficit >= 0 ? t('{0} kcal deficit', nf(n.deficit)) : t('{0} kcal surplus', nf(-n.deficit))}</span>
+      <span className="small dim">{day === today ? t('so far, against {0} kcal maintenance', nf(g.maint)) : t('against {0} kcal maintenance', nf(g.maint))}</span>
+    </div>}
+    {(n.protein != null || g?.protein) && <div className="wb-macro">
+      <span>{t('Protein')}</span>
+      <span className="wb-macro-v">{n.protein ?? 0} g{g?.protein ? <span className="dim"> / {rangeText(g.protein)} g</span> : null}</span>
+      {g?.protein && <GoalBar v={n.protein ?? 0} r={g.protein} status={n.proteinStatus === 'over' ? 'in' : n.proteinStatus} />}
+    </div>}
+    {!g && <button type="button" className="chip nocap add wb-setgoals" onClick={() => goalsSheet()}><Icon name="target" />{t('Set your calorie, protein and water goals')}</button>}
+    {g?.quality && <div className="small dim wb-quality"><Icon name="lightbulb" />{g.quality}</div>}
     {MEALS.map(meal => {
       const xs = foods.filter(f => f.meal === meal)
       if (!xs.length) return null
@@ -228,13 +266,120 @@ function PromptSheet({ title, placeholder, max, initial, numeric, onSave, onClea
   </>
 }
 
-function goalSheet() {
+/* ---------------- water ---------------- */
+
+function WaterCard({ S, day }) {
+  const today = todayISO()
+  const g = goalsOn(S, day)
+  const ml = waterOn(S, day)
+  const glass = glassOf(g)
+  const aim = waterAim(g)
+  const glasses = Math.min(16, Math.max(1, Math.ceil((g?.water?.max ?? aim) / glass)))
+  const full = Math.floor(ml / glass)
+  const set = v => save(s => { applyWater(s, day, v, today) })
+  return <section className="card wb-card">
+    <h2 className="wb-h"><Icon name="drop" />{t('Water')}
+      <button className="iconbtn wb-h-btn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" /></button>
+    </h2>
+    <div className="wb-kcal">
+      <span className="wb-kcal-n">{litres(ml)} L</span>
+      <span className="dim">{g?.water ? t('of {0} L', rangeL(g.water)) : t('of {0} L', litres(aim))}</span>
+    </div>
+    <div className="wb-glasses" role="group" aria-label={t('Glasses of {0} ml', glass)}>
+      {Array.from({ length: glasses }, (_, i) => {
+        const on = i < full
+        // A tap on a glass fills up to it; a tap on the last full one empties it again.
+        return <button key={i} type="button" className={'wb-glass' + (on ? ' on' : '')} aria-pressed={on}
+          aria-label={t('{0} glasses', i + 1)} onClick={() => set(i + 1 === full ? i * glass : (i + 1) * glass)}><Icon name="drop" /></button>
+      })}
+    </div>
+    <div className="wb-water-btns">
+      <Button variant="tinted" icon="minus" disabled={ml <= 0} onClick={() => set(Math.max(0, ml - glass))} aria-label={t('One glass less')} />
+      <Button variant="tinted" icon="plus" onClick={() => set(ml + glass)}>{t('Glass, {0} ml', glass)}</Button>
+    </div>
+  </section>
+}
+
+/* ---------------- nutrition goals ---------------- */
+
+function goalsSheet() { ui().openSheet(close => <GoalsSheet close={close} />, { wide: true }) }
+
+/** Two number fields for a range: from – to. Either may stay empty. */
+function RangeField({ value, onChange, unit, decimal = false, label }) {
+  return <span className="wb-range" role="group" aria-label={label}>
+    <NumberField nullable decimal={decimal} value={value.min ?? null} onChange={v => onChange({ ...value, min: v })} placeholder={t('from')} />
+    <span className="dim">–</span>
+    <NumberField nullable decimal={decimal} value={value.max ?? null} onChange={v => onChange({ ...value, max: v })} placeholder={t('to')} />
+    <i>{unit}</i>
+  </span>
+}
+
+const toL = r => (r ? { min: r.min != null ? r.min / 1000 : null, max: r.max != null ? r.max / 1000 : null } : {})
+const fromL = r => ({ min: r.min != null ? Math.round(r.min * 1000) : null, max: r.max != null ? Math.round(r.max * 1000) : null })
+
+function GoalsSheet({ close }) {
   const S = store().S
-  promptSheet({
-    title: t('Daily calorie goal'), placeholder: '2000', numeric: true, initial: kcalGoalOf(S) ?? '',
-    onSave: v => save(s => { s.kcalGoal = Math.max(500, Math.min(10000, Math.round(v))) }),
-    onClear: kcalGoalOf(S) ? () => save(s => { s.kcalGoal = null }) : null,
-  })
+  const today = todayISO()
+  const cur = goalsOn(S, today) || {}
+  const w0 = weightKg(S)
+  const [kcal, setKcal] = useState(cur.kcal || {})
+  const [split, setSplit] = useState(!!cur.kcalRest)
+  const [rest, setRest] = useState(cur.kcalRest || {})
+  const [maint, setMaint] = useState(cur.maint ?? null)
+  const [pMode, setPMode] = useState(cur.perKg ? 'kg' : 'g')
+  const [protein, setProtein] = useState(cur.protein || {})
+  const [perKg, setPerKg] = useState(cur.perKg || { w: w0 })
+  const [water, setWater] = useState(toL(cur.water))
+  const [glass, setGlass] = useState(cur.glass ?? GLASS_ML)
+  const [quality, setQuality] = useState(cur.quality || '')
+  const w = perKg.w
+  const fromKg = { min: proteinFromKg(perKg.min, w), max: proteinFromKg(perKg.max, w) }
+  const est = maintEstimate(w || w0)
+  const saveIt = () => {
+    const goals = {
+      kcal, ...(split ? { kcalRest: rest } : {}), maint,
+      protein: pMode === 'kg' ? fromKg : protein, ...(pMode === 'kg' ? { perKg } : {}),
+      water: fromL(water), glass, quality,
+    }
+    save(s => { s.wbGoals = withGoals(s.wbGoals, today, goals) })
+    ui().toast(t('Goals saved'))
+    close()
+  }
+  const clear = () => { save(s => { s.wbGoals = withGoals(s.wbGoals, today, null); s.kcalGoal = null }); close() }
+  return <>
+    <h3>{t('Nutrition goals')}</h3>
+    <div className="small dim" style={{ marginBottom: 12 }}>{t('Set them once: every day follows them until you change them. Past days keep the goals they had.')}</div>
+    <div className="wb-form wb-goals">
+      <div className="wb-gsec">{t('Calories')}</div>
+      <label><span>{split ? t('Training days') : t('Every day')}</span><RangeField value={kcal} onChange={setKcal} unit="kcal" label={t('Calories')} /></label>
+      <label className="wb-favrow"><Check checked={split} onChange={setSplit} label={t('Another goal on rest days')} /><span onClick={() => setSplit(!split)}>{t('Another goal on rest days')}</span></label>
+      {split && <label><span>{t('Rest days')}</span><RangeField value={rest} onChange={setRest} unit="kcal" label={t('Rest days')} /></label>}
+      <label><span>{t('Maintenance')}</span><span className="wb-in"><NumberField nullable decimal={false} value={maint} onChange={setMaint} /><i>kcal</i></span></label>
+      <div className="small dim">{t('What a normal day burns. Your deficit is this minus what you ate.')}
+        {est && maint == null && <> <button type="button" className="linkbtn" onClick={() => setMaint(est)}>{t('Use about {0} kcal (a rough guess from {1} kg)', nf(est), w || w0)}</button></>}</div>
+
+      <div className="wb-gsec">{t('Protein')}</div>
+      <Segmented value={pMode} onChange={setPMode} options={[{ value: 'g', label: t('Grams a day') }, { value: 'kg', label: t('Per kg of body weight') }]} />
+      {pMode === 'g'
+        ? <label><span>{t('Protein')}</span><RangeField value={protein} onChange={setProtein} unit="g" label={t('Protein')} /></label>
+        : <>
+          <label><span>{t('Per kg')}</span><RangeField value={perKg} onChange={v => setPerKg({ ...perKg, ...v })} unit="g/kg" decimal label={t('Per kg')} /></label>
+          <label><span>{t('Body weight')}</span><span className="wb-in"><NumberField nullable value={w ?? null} onChange={v => setPerKg({ ...perKg, w: v })} /><i>kg</i></span></label>
+          {(fromKg.min || fromKg.max) && <div className="small dim">{t('That is {0} g a day.', rangeText(fromKg))}</div>}
+        </>}
+
+      <div className="wb-gsec">{t('Water')}</div>
+      <label><span>{t('Water')}</span><RangeField value={water} onChange={setWater} unit="L" decimal label={t('Water')} /></label>
+      <label><span>{t('Glass size')}</span><span className="wb-in"><NumberField nullable decimal={false} value={glass} onChange={setGlass} /><i>ml</i></span></label>
+
+      <div className="wb-gsec">{t('Food quality')}</div>
+      <TextArea rows={2} maxLength={NOTE_MAX} value={quality} placeholder={t('Like “Lean meats, fish, eggs, vegetables, fruit”')} aria-label={t('Food quality')} onChange={e => setQuality(e.target.value)} />
+    </div>
+    <Button variant="primary" onClick={saveIt}>{t('Save')}</Button>
+    {goalsOn(S, today) && <><div style={{ height: 8 }} /><Button variant="ghost" className="dim" onClick={clear}>{t('Remove goals')}</Button></>}
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
 }
 
 // One editor for the lists: take items off, put suggested ones back, add your own. Supplements and
@@ -251,7 +396,7 @@ function SuppListSheet({ close }) {
   const list = suppList(S)
   const ideas = SUPP_IDEAS.filter(x => !list.some(y => y.id === x.id))
   const remove = x => save(s => { s.wbSuppDefs = withSuppDef(s.wbSuppDefs, x.id, '', '', 0) })
-  const addIdea = x => save(s => { s.wbSuppDefs = withSuppDef(s.wbSuppDefs, x.id, x.name, x.dose, suppList(s).length, Date.now(), true, x.times || 1) })
+  const addIdea = x => save(s => { s.wbSuppDefs = withSuppDef(s.wbSuppDefs, x.id, x.name, '', suppList(s).length, Date.now(), true, x.times || 1, x) })
   const edit = x => ui().openSheet(c => <SuppEditSheet item={x} close={c} />)
   return <>
     <h3>{t('Your supplements and medicine')}</h3>
@@ -259,8 +404,9 @@ function SuppListSheet({ close }) {
     <div className="list">
       {list.map(x => <div key={x.id} className="item wb-hrow">
         <span className="wb-hrow-n" role="button" tabIndex={0} onClick={() => edit(x)} onKeyDown={e => { if (e.key === 'Enter') edit(x) }}>
-          <span>{shown(x)}</span>
-          <span className="small dim">{[x.dose, timesLabel(x.times)].filter(Boolean).join(' · ')}</span>
+          <span>{x.kind === 'med' && <Icon name="pill" className="wb-med" />}{shown(x)}</span>
+          <span className="small dim">{[x.kind === 'med' ? t('Medicine') : t('Supplement'), doseText(x, t), timesLabel(x.times),
+            x.kind !== 'med' && x.kcal ? `${x.kcal} kcal` : '', x.kind !== 'med' && x.protein ? t('{0} g protein', x.protein) : ''].filter(Boolean).join(' · ')}</span>
         </span>
         <button className="iconbtn" onClick={() => edit(x)} aria-label={t('Edit {0}', shown(x))}><Icon name="pencil" /></button>
         <button className="iconbtn" onClick={() => remove(x)} aria-label={t('Remove {0}', shown(x))}><Icon name="trash" /></button>
@@ -279,26 +425,44 @@ function SuppListSheet({ close }) {
   </>
 }
 
-/** Add or change one supplement or medicine: its name, dose, and how many times a day. */
+/** Add or change one supplement or medicine: its kind, name, dose (amount and unit), kcal and protein, and how many times a day. */
 function SuppEditSheet({ item, close }) {
+  const [kind, setKind] = useState(item?.kind || 'supp')
   const [name, setName] = useState(item ? shown(item) : '')
-  const [dose, setDose] = useState(item?.dose || '')
+  const [amount, setAmount] = useState(item?.amount ?? null)
+  const [unit, setUnit] = useState(item?.unit || (item?.amount ? '' : 'g'))
+  const [kcal, setKcal] = useState(item?.kcal ?? null)
+  const [protein, setProtein] = useState(item?.protein ?? null)
   const [times, setTimes] = useState(item?.times || 1)
   const ok = name.trim().length > 0
+  const isMed = kind === 'med'
   const saveIt = () => {
     if (!ok) return
     save(s => {
       // A suggested item renamed by hand stops being translated: the name is yours now.
       const std = !!item?.std && name.trim() === shown(item)
-      s.wbSuppDefs = withSuppDef(s.wbSuppDefs, item?.id || 's-' + uid(), std ? item.name : name.trim(), dose.trim(), item ? item.order : suppList(s).length, Date.now(), std, times)
+      s.wbSuppDefs = withSuppDef(s.wbSuppDefs, item?.id || 's-' + uid(), std ? item.name : name.trim(), amount || item?.amount ? '' : (item?.dose || ''),
+        item ? item.order : suppList(s).length, Date.now(), std, times, { kind, amount, unit, kcal: isMed ? null : kcal, protein: isMed ? null : protein })
     })
     close()
   }
   return <>
     <h3>{item ? t('Edit {0}', shown(item)) : t('Add supplement or medicine')}</h3>
+    <Segmented value={kind} onChange={setKind} options={[{ value: 'supp', label: t('Supplement') }, { value: 'med', label: t('Medicine') }]} />
+    <div style={{ height: 12 }} />
     <div className="wb-form">
-      <label><span>{t('Name')}</span><TextField autoFocus={!item} value={name} maxLength={NAME_MAX} placeholder={t('Like “Ibuprofen” or “Iron”')} onChange={e => setName(e.target.value)} /></label>
-      <label><span>{t('Dose')}</span><TextField value={dose} maxLength={DOSE_MAX} placeholder={t('Like “1 tablet”, “30 g” or “2000 IU”')} onChange={e => setDose(e.target.value)} /></label>
+      <label><span>{t('Name')}</span><TextField autoFocus={!item} value={name} maxLength={NAME_MAX} placeholder={isMed ? t('Like “Ibuprofen”') : t('Like “Iron” or “Protein powder”')} onChange={e => setName(e.target.value)} /></label>
+      <label><span>{t('Dose')}</span><span className="wb-in"><NumberField nullable value={amount} onChange={setAmount} /></span></label>
+      <label><span>{t('Unit')}</span>
+        <span className="wb-times-pick" role="group" aria-label={t('Unit')}>
+          {DOSE_UNITS.map(u => <button key={u} type="button" className={'chip nocap' + (unit === u ? ' on' : '')} aria-pressed={unit === u} onClick={() => setUnit(u)}>{UNIT_LABEL[u] ? t(UNIT_LABEL[u]) : u}</button>)}
+        </span></label>
+      {!isMed && <>
+        <label><span>{t('Calories per intake')}</span><span className="wb-in"><NumberField nullable decimal={false} value={kcal} onChange={setKcal} /><i>kcal</i></span></label>
+        <label><span>{t('Protein per intake')}</span><span className="wb-in"><NumberField nullable value={protein} onChange={setProtein} /><i>g</i></span></label>
+        <div className="small dim">{t('Each intake you tick adds these to the food of the day, so your deficit counts them. Leave them empty for vitamins and the like.')}</div>
+      </>}
+      {isMed && <div className="small dim">{t('Medicine never counts toward calories.')}</div>}
       <label><span>{t('Times a day')}</span>
         <span className="wb-times-pick" role="group" aria-label={t('Times a day')}>
           {Array.from({ length: TIMES_MAX }, (_, i) => i + 1).map(n => <button key={n} type="button" className={'chip nocap' + (times === n ? ' on' : '')} aria-pressed={times === n} onClick={() => setTimes(n)}>{n}×</button>)}
@@ -640,8 +804,9 @@ function DetailView() {
       {sum.moodDays > 0 && <div className="wb-dist" aria-label={t('Average mood')}>
         {sum.moodDist.map((n, i) => n > 0 && <span key={i} className={'m' + (i + 1)} style={{ flex: n }} title={`${t(MOOD_LABEL[i + 1])}: ${n}`} />)}
       </div>}
-      {kcalGoalOf(S) && sum.kcalDays > 0 && <div className="small dim wb-sub">{t('Over your calorie goal on {0} of {1} days.', sum.overGoal, sum.kcalDays)}</div>}
     </section>
+
+    <NutritionCard S={S} days={rows.map(r => r.d)} today={today} />
 
     {sum.reasons.length > 0 && <Bars icon="smile" title={t('What your mood had to do with')} items={sum.reasons.slice(0, 6).map(x => ({ id: x.id, label: reasonLabel(x.id), n: x.days }))} total={sum.moodDays} cls="mood" />}
     {sum.symptoms.length > 0 && <Bars icon="warning" title={t('Symptoms')} items={sum.symptoms.map(x => ({ id: x.id, label: symLabel(x.id), n: x.days, extra: x.severe ? t('{0} severe', x.severe) : '' }))} total={sum.days} />}
@@ -656,6 +821,37 @@ function DetailView() {
       <div className="tiny dim wb-foot">{t('These are things that happened together, not proof that one causes the other.')}</div>
     </section>
   </>
+}
+
+/** The stretch against the goals: days in range, the deficit added up and what it comes to, protein, water. */
+function NutritionCard({ S, days, today }) {
+  const p = useMemo(() => periodNutrition(S, days, { today, trained: trainedDays(S) }), [S, days.join(), today]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!p.foodDays && !p.waterDays) return null
+  const bars = p.perDay.length <= 62 && p.deficitDays > 0
+  const top = Math.max(1, ...p.perDay.map(x => Math.abs(x.deficit || 0)))
+  const W = 300, H = 70, mid = H / 2, bw = W / Math.max(1, p.perDay.length)
+  return <section className="card wb-card">
+    <h2 className="wb-h"><Icon name="target" />{t('Nutrition goals')}</h2>
+    <div className="wb-stats">
+      {p.withTarget > 0 && <Stat v={`${p.inTarget}/${p.withTarget}`} l={t('Days inside your calorie range')} />}
+      {p.deficit != null && <Stat v={(p.deficit >= 0 ? '' : '+') + nf(Math.abs(p.deficit))} l={p.deficit >= 0 ? t('Deficit in total, kcal') : t('Surplus in total, kcal')} />}
+      {p.avgDeficit != null && <Stat v={nf(Math.abs(p.avgDeficit))} l={p.avgDeficit >= 0 ? t('Average deficit a day') : t('Average surplus a day')} />}
+      {p.fatKg != null && <Stat v={`≈ ${fmt1(Math.abs(p.fatKg))} kg`} l={p.fatKg >= 0 ? t('Body fat that deficit is worth') : t('Body fat that surplus is worth')} />}
+      {p.proteinDays > 0 && <Stat v={`${p.proteinMet}/${p.proteinDays}`} l={t('Days you reached your protein')} />}
+      {p.water != null && <Stat v={`${litres(p.water)} L`} l={t('Average water on the days you logged it')} />}
+    </div>
+    {bars && <svg className="wb-defbars" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('Deficit per day')}>
+      <line x1="0" x2={W} y1={mid} y2={mid} className="wb-defaxis" />
+      {p.perDay.map((x, i) => {
+        if (x.deficit == null) return null
+        const h = Math.max(1, Math.abs(x.deficit) / top * (mid - 2))
+        return <rect key={x.d} x={i * bw + bw * 0.15} width={bw * 0.7} y={x.deficit >= 0 ? mid - h : mid} height={h} rx={1}
+          className={x.deficit >= 0 ? 'def' : 'sur'}><title>{fmtDate(x.d, true)}: {x.deficit >= 0 ? t('{0} kcal deficit', nf(x.deficit)) : t('{0} kcal surplus', nf(-x.deficit))}</title></rect>
+      })}
+    </svg>}
+    {bars && <div className="wb-legend small dim"><span><span className="wb-sw def" />{t('Deficit')}</span><span><span className="wb-sw sur" />{t('Surplus')}</span></div>}
+    {(p.foodDays > 0 || p.waterDays > 0) && <div className="tiny dim wb-foot">{t('Today counts once it is over.')}{p.deficitDays > 0 ? ' ' + t('About 7,700 kcal make a kilo of body fat. A rough guide: water and food in the gut move the scale too.') : ''}</div>}
+  </section>
 }
 
 function Bars({ icon, title, items, total, cls = '', pct }) {

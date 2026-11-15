@@ -39,7 +39,9 @@ const P = {
   /* ---- status / achievement ---- */
   trophy: <><path d="M7.6 4h8.8v4.6a4.4 4.4 0 0 1-8.8 0Z" /><path d="M7.6 5.6H4.9v1.5a3 3 0 0 0 2.9 3M16.4 5.6h2.7v1.5a3 3 0 0 1-2.9 3M12 13v3.4M8.6 20.4h6.8l-.7-4H9.3Z" /></>,
   medal: <><circle cx="12" cy="14.8" r="5.2" /><circle cx="12" cy="14.8" r="1.9" /><path d="M9.1 9.9 6.4 3.6M14.9 9.9l2.7-6.3" /></>,
-  target: <><circle cx="12" cy="12" r="8.2" /><circle cx="12" cy="12" r="4.6" /><circle cx="12" cy="12" r="1.1" /></>,
+  pill: <><rect x="3.6" y="8.6" width="16.8" height="6.8" rx="3.4" transform="rotate(-45 12 12)" /><path d="M9.6 9.6l4.8 4.8" /></>,
+  drop:<path d="M12 3.6c3.1 3.7 5.7 7 5.7 10.2a5.7 5.7 0 0 1-11.4 0C6.3 10.6 8.9 7.3 12 3.6z" />,
+  target:<><circle cx="12" cy="12" r="8.2" /><circle cx="12" cy="12" r="4.6" /><circle cx="12" cy="12" r="1.1" /></>,
   star: <path d="m12 3.9 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z" />,
   starFill: <path d="m12 3.9 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z" fill="currentColor" stroke="none" />,
   crown: <path d="M4.2 17.6h15.6M4.2 17.6 3.4 7.2l4.6 3.2L12 4.6l4 5.8 4.6-3.2-.8 10.4Z" />,

@@ -7,7 +7,8 @@
 // data never turn into advice.
 import { workoutDay } from './history.js'
 import { activitiesOf } from './activities.js'
-import { moodOf, symptomsOf, habitsDoneOn, habitList, suppsTakenOn, suppList, dayTotals, kcalGoalOf, monthDays } from './wellbeing.js'
+import { moodOf, symptomsOf, habitsDoneOn, habitList, suppsTakenOn, suppList, monthDays } from './wellbeing.js'
+import { dayNutrition } from './nutrition.js'
 
 export const MIN_DAYS = 3
 export const MIN_GAP = 0.5        // mood points (1 to 5)
@@ -38,13 +39,13 @@ export function daysBetween(from, to) {
   return out
 }
 
-/** One row per day of `days` up to `today`: { d, trained, mood, symptoms, worst, habits, supps, kcal, protein, foods }. */
+/** One row per day of `days` up to `today`: { d, trained, mood, symptoms, worst, habits, supps, kcal, protein, foods, kcalStatus, deficit, water }. */
 function rowsFor(S, days, today) {
   const trained = trainedDays(S)
   return days.filter(d => !today || d <= today).map(d => {
     const m = moodOf(S, d)
     const s = symptomsOf(S, d)
-    const tot = dayTotals(S, d)
+    const tot = dayNutrition(S, d, { today, trained })
     const sym = s ? s.s : {}
     return {
       d,
@@ -57,7 +58,10 @@ function rowsFor(S, days, today) {
       supps: suppsTakenOn(S, d),
       kcal: tot.count ? tot.kcal : null,
       protein: tot.protein,
-      foods: tot.count,
+      foods: tot.foods,
+      kcalStatus: tot.status,
+      deficit: tot.deficit,
+      water: tot.water || null,
     }
   })
 }
@@ -75,7 +79,6 @@ export function monthSummary(S, rows) {
   }
   const habits = habitList(S).map(h => ({ id: h.id, name: h.name, std: !!h.std, days: rows.filter(r => r.habits.includes(h.id)).length }))
   const supps = suppList(S).map(x => ({ id: x.id, name: x.name, std: !!x.std, days: rows.filter(r => r.supps.includes(x.id)).length }))
-  const goal = kcalGoalOf(S)
   const proteins = rows.map(r => r.protein).filter(v => v != null)
   const reasons = {}
   for (const r of rows) for (const id of r.reasons) reasons[id] = (reasons[id] || 0) + 1
@@ -89,7 +92,7 @@ export function monthSummary(S, rows) {
     trained: rows.filter(r => r.trained).length,
     mood: avg(moods), moodDays: moods.length,
     kcal: kcals.length ? Math.round(kcals.reduce((a, b) => a + b, 0) / kcals.length) : null, kcalDays: kcals.length,
-    overGoal: goal ? kcals.filter(k => k > goal).length : null,
+    overGoal: rows.some(r => r.kcalStatus) ? rows.filter(r => r.kcalStatus === 'over').length : null,
     symptoms: Object.entries(symptomDays).map(([id, x]) => ({ id, ...x })).sort((a, b) => b.days - a.days),
     habits,
     supps,
@@ -131,8 +134,7 @@ export function monthInsights(S, rows) {
   const habits = habitList(S)
   for (const h of habits) push('moodHabit', moodSplit(rows, r => r.habits.includes(h.id)), { key: h.id, name: h.name, std: !!h.std })
   for (const x of suppList(S)) push('moodSupp', moodSplit(rows, r => r.supps.includes(x.id)), { key: x.id, name: x.name, std: !!x.std })
-  const goal = kcalGoalOf(S)
-  if (goal) push('moodFood', moodSplit(rows.filter(r => r.kcal != null), r => r.kcal <= goal), { goal })
+  push('moodFood', moodSplit(rows.filter(r => r.kcalStatus), r => r.kcalStatus !== 'over'))
   const seen = [...new Set(rows.flatMap(r => Object.keys(r.symptoms)))]
   for (const id of seen) {
     push('moodSymptom', moodSplit(rows, r => !!r.symptoms[id]), { key: id })

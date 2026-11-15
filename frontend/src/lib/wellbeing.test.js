@@ -103,7 +103,7 @@ describe('supplements', () => {
     let defs = { s1: { name: 'Vitamin D', dose: '2000 IU', order: 0, _ts: 1 } }
     defs = withSuppDef(defs, 's2', 'Creatine', '', 1, 2)
     const S = { wbSuppDefs: defs, wbSupps: {} }
-    expect(suppList(S)).toEqual([{ id: 's1', name: 'Vitamin D', dose: '2000 IU', times: 1, std: false, order: 0 }, { id: 's2', name: 'Creatine', dose: '', times: 1, std: false, order: 1 }])
+    expect(suppList(S)).toMatchObject([{ id: 's1', name: 'Vitamin D', dose: '2000 IU', amount: 2000, unit: 'IU', kind: 'supp', times: 1, std: false, order: 0 }, { id: 's2', name: 'Creatine', dose: '', amount: null, times: 1, std: false, order: 1 }])
     S.wbSupps = withSuppTap(S.wbSupps, D, suppCountsOn(S, D), 's2', 1, 3)
     expect(suppsTakenOn(S, D)).toEqual(['s2'])
     S.wbSuppDefs = withSuppDef(S.wbSuppDefs, 's2', '', '', 0, 4)
@@ -142,7 +142,7 @@ describe('food', () => {
     let m = withFood({}, 'a', { d: D, name: 'Rice', kcal: 200, meal: 'lunch' }, 1)
     m = withFood(m, 'b', { d: D, name: 'Chicken', kcal: 300, protein: 40.4, meal: 'lunch' }, 2)
     m = withFood(m, 'c', { d: '2026-11-11', name: 'Other day', kcal: 999 }, 3)
-    expect(dayTotals({ wbFood: m }, D)).toEqual({ kcal: 500, protein: 40, count: 2 })
+    expect(dayTotals({ wbFood: m }, D)).toMatchObject({ kcal: 500, protein: 40, count: 2, foods: 2, suppKcal: 0 })
     m = withFood(m, 'b', null, 4)
     expect(foodsOn({ wbFood: m }, D).map(f => f.id)).toEqual(['a'])
     expect(dayTotals({ wbFood: m }, D).protein).toBeNull()
