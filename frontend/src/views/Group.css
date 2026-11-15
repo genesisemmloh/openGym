@@ -28,3 +28,20 @@
 .grp-mini{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .grp-mini-row{display:flex;align-items:center;gap:8px}
 .grp-mini-row .grp-name{flex:1}
+.grp-tabs{flex-wrap:wrap;overflow-x:visible;margin-bottom:10px}
+.grp-tabs .chip{min-height:40px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px}
+.grp-tabs .chip .icn{width:15px;height:15px}
+.grp-actions{display:flex;gap:8px;margin-bottom:12px}
+.grp-actions .btn{flex:1;padding:11px 10px;font-size:.95rem}
+.grp-h{font-size:1.05rem;font-weight:600;margin:0 0 10px}
+.grp-switch{margin-top:14px}
+.grp-privacy{margin-top:12px}
+.grp-err{color:var(--red);margin-top:8px}
+.grp-code-in{text-transform:uppercase;letter-spacing:.12em;font-weight:600}
+.grp-code-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.grp-code-row .btn{width:auto;flex:none}
+.grp-code{font-size:1.5rem;font-weight:700;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.grp-admin{display:flex;flex-direction:column;gap:2px;margin-top:12px}
+.grp-admin .btn{justify-content:flex-start}
+.grp-rm{flex:none;color:var(--label-2)}
+.grp-crown{width:14px;height:14px;color:var(--yellow);margin-inline-start:6px;vertical-align:-2px}

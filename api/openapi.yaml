@@ -427,6 +427,98 @@ paths:
                   members: { type: array, items: { type: object } }
                   totals: { type: object, nullable: true }
         '401': { description: Not signed in. }
+  /api/groups:
+    get:
+      tags: [meta]
+      operationId: getGroups
+      summary: Your groups and their boards (fork)
+      description: |
+        The groups you are in, each with its join code and its board (counts only: workouts this
+        week and month, minutes, week streak). Whoever runs a group also gets each member's `key`,
+        to remove someone. Joining a group is consenting to show it these counts.
+      parameters:
+        - { name: today, in: query, required: false, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Your groups. }
+        '401': { description: Not signed in. }
+  /api/groups/create:
+    post:
+      tags: [meta]
+      operationId: createGroup
+      summary: Create a group (fork)
+      description: Creates a group you run, and answers its id and join code.
+      responses:
+        '200': { description: Created. }
+        '400': { description: No name. }
+        '401': { description: Not signed in. }
+        '409': { description: You are in too many groups. }
+  /api/groups/join:
+    post:
+      tags: [meta]
+      operationId: joinGroup
+      summary: Join a group with its code (fork)
+      description: Joins the group whose code is `code`. Joining twice changes nothing.
+      responses:
+        '200': { description: Joined. }
+        '401': { description: Not signed in. }
+        '404': { description: No group has that code. }
+        '409': { description: The group is full, or you are in too many groups. }
+  /api/groups/leave:
+    post:
+      tags: [meta]
+      operationId: leaveGroup
+      summary: Leave a group (fork)
+      description: Leaves group `id`. If you ran it, the longest-standing member takes over; the last one out deletes it.
+      responses:
+        '200': { description: Left. }
+        '401': { description: Not signed in. }
+        '404': { description: Not in that group. }
+  /api/groups/rename:
+    post:
+      tags: [meta]
+      operationId: renameGroup
+      summary: Rename a group you run (fork)
+      description: Renames group `id` to `name`.
+      responses:
+        '200': { description: Renamed. }
+        '400': { description: No name. }
+        '401': { description: Not signed in. }
+        '403': { description: You do not run that group. }
+        '404': { description: Not in that group. }
+  /api/groups/code:
+    post:
+      tags: [meta]
+      operationId: renewGroupCode
+      summary: Give a group you run a new join code (fork)
+      description: The old code stops working; members stay.
+      responses:
+        '200': { description: The new code. }
+        '401': { description: Not signed in. }
+        '403': { description: You do not run that group. }
+        '404': { description: Not in that group. }
+  /api/groups/remove:
+    post:
+      tags: [meta]
+      operationId: removeGroupMember
+      summary: Remove someone from a group you run (fork)
+      description: Removes the member whose `key` (from GET /api/groups) is given.
+      responses:
+        '200': { description: Removed. }
+        '400': { description: That is you; leave instead. }
+        '401': { description: Not signed in. }
+        '403': { description: You do not run that group. }
+        '404': { description: No such member or group. }
+  /api/groups/delete:
+    post:
+      tags: [meta]
+      operationId: deleteGroup
+      summary: Delete a group you run (fork)
+      description: Deletes group `id` for everyone in it. Nobody's training data is touched.
+      responses:
+        '200': { description: Deleted. }
+        '401': { description: Not signed in. }
+        '403': { description: You do not run that group. }
+        '404': { description: Not in that group. }
   /api/me:
     get:
       tags: [auth]

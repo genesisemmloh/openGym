@@ -45,6 +45,7 @@ import { integrationRoutes } from './integrations/routes.js';
 import { buildIcs } from './integrations/calendar.js';
 import { createFoodSearch } from './food-search.js';
 import { groupBoard, todayFrom } from './group.js';
+import { createGroup, joinGroup, leaveGroup, renameGroup, newGroupCode, removeMember, deleteGroup, myGroups } from './groups.js';
 const foodSearch = createFoodSearch();
 import { deriveKey, seal as sealText, open as openSealed } from './integrations/crypto.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
@@ -198,6 +199,17 @@ db.users = db.users || [];
 db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
+db.groups = Array.isArray(db.groups) ? db.groups : []; // fork: groups.js
+
+/** Runs one group change for the signed-in user and saves db.json when it changed something. */
+async function groupAction(req, res, fn) {
+  const s = sessionOf(req);
+  if (!s) return json(res, 401, { error: 'not signed in' });
+  const body = await readBody(req);
+  const r = fn(s.user.id, body && typeof body === 'object' ? body : {});
+  if (r.changed) saveDb();
+  json(res, r.status, r.body);
+}
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // One owner per instance, any number of admins. Admins run the place day to day (users, invites,
@@ -2636,6 +2648,23 @@ const routes = {
     const people = db.users.filter(x => !x.disabled).map(x => ({ uid: x.id, name: x.name, S: readStateCached(x.id) || {} }));
     json(res, 200, groupBoard(people, s.user.id, todayFrom(u.searchParams.get('today'))));
   },
+
+  // Groups (fork, groups.js): create, join with a code, leave, and for the one who runs a group,
+  // rename, a new code, remove someone, delete. Each answer that changed something saves db.json.
+  'GET /api/groups': async (req, res) => {
+    const s = sessionOf(req);
+    if (!s) return json(res, 401, { error: 'not signed in' });
+    const u = new URL(req.url, 'http://local');
+    const people = new Map(db.users.filter(x => !x.disabled).map(x => [x.id, { name: x.name, S: readStateCached(x.id) || {} }]));
+    json(res, 200, { groups: myGroups(db.groups, s.user.id, people, todayFrom(u.searchParams.get('today'))) });
+  },
+  'POST /api/groups/create': (req, res) => groupAction(req, res, (uid, b) => createGroup(db.groups, uid, b.name)),
+  'POST /api/groups/join': (req, res) => groupAction(req, res, (uid, b) => joinGroup(db.groups, uid, b.code)),
+  'POST /api/groups/leave': (req, res) => groupAction(req, res, (uid, b) => leaveGroup(db.groups, uid, text(b.id))),
+  'POST /api/groups/rename': (req, res) => groupAction(req, res, (uid, b) => renameGroup(db.groups, uid, text(b.id), b.name)),
+  'POST /api/groups/code': (req, res) => groupAction(req, res, (uid, b) => newGroupCode(db.groups, uid, text(b.id))),
+  'POST /api/groups/remove': (req, res) => groupAction(req, res, (uid, b) => removeMember(db.groups, uid, text(b.id), text(b.key))),
+  'POST /api/groups/delete': (req, res) => groupAction(req, res, (uid, b) => deleteGroup(db.groups, uid, text(b.id))),
 
   'POST /api/register/options': async (req, res) => {
     const body = await readBody(req);
