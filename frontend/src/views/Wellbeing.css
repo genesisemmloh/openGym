@@ -138,3 +138,28 @@
 /* Unpicked chips read as buttons, not loose text: a soft fill and a hairline edge. */
 .wb-card .chip:not(.on):not(.add),.wb-edit-list .chip:not(.on):not(.add){background:rgba(128,128,128,.16);background:color-mix(in srgb,currentColor 9%,transparent);box-shadow:inset 0 0 0 1px rgba(128,128,128,.25)}
 .wb-card .chip.add{background:var(--acc-soft);box-shadow:none}
+
+/* Detail: period picker, own dates, the year heat map and the mood spread. */
+.wb-kinds{margin-bottom:10px}
+.wb-custom{display:flex;gap:10px;margin:4px 0 12px}
+.wb-custom label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--label-2)}
+.wb-heat{display:block;width:100%;height:auto}
+.wb-heat-m{font-size:8px;fill:var(--label-2);text-transform:uppercase}
+.wb-hc{fill:rgba(128,128,128,.16)}
+.wb-hc.fut{opacity:.3}
+.wb-hc.m1{fill:rgba(255,69,58,.8)}
+.wb-hc.m2{fill:rgba(255,159,10,.75)}
+.wb-hc.m3{fill:rgba(255,214,10,.65)}
+.wb-hc.m4{fill:rgba(48,209,88,.6)}
+.wb-hc.m5{fill:rgba(48,209,88,.95)}
+.wb-hc-tr{fill:var(--blue)}
+.wb-hc-sy{fill:var(--red)}
+.wb-stats{grid-template-columns:repeat(2,1fr)}
+.wb-dist{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:14px;gap:2px}
+.wb-dist span{display:block;height:100%}
+.wb-dist .m1{background:rgba(255,69,58,.8)}
+.wb-dist .m2{background:rgba(255,159,10,.75)}
+.wb-dist .m3{background:rgba(255,214,10,.7)}
+.wb-dist .m4{background:rgba(48,209,88,.6)}
+.wb-dist .m5{background:rgba(48,209,88,.95)}
+.wb-bline.mood span{background:var(--indigo)}

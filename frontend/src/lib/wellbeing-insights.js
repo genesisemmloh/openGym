@@ -21,10 +21,27 @@ export function trainedDays(S) {
   return out
 }
 
-/** One row per day of `ym` up to `today`: { d, trained, mood, symptoms, worst, habits, kcal, protein, foods }. */
-export function monthRows(S, ym, today) {
+/** One row per day of `ym` up to `today` (see rangeRows). */
+export const monthRows = (S, ym, today) => rowsFor(S, monthDays(ym), today)
+
+/** One row per day from `from` to `to` (inclusive) up to `today`. */
+export const rangeRows = (S, from, to, today) => rowsFor(S, daysBetween(from, to), today)
+
+/** The ISO days from `from` to `to`, inclusive (at most ten years, so a typo cannot spin). */
+export function daysBetween(from, to) {
+  const out = []
+  const d = new Date(from + 'T12:00:00'), end = new Date(to + 'T12:00:00')
+  for (let i = 0; d <= end && i < 3660; i++) {
+    out.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'))
+    d.setDate(d.getDate() + 1)
+  }
+  return out
+}
+
+/** One row per day of `days` up to `today`: { d, trained, mood, symptoms, worst, habits, supps, kcal, protein, foods }. */
+function rowsFor(S, days, today) {
   const trained = trainedDays(S)
-  return monthDays(ym).filter(d => !today || d <= today).map(d => {
+  return days.filter(d => !today || d <= today).map(d => {
     const m = moodOf(S, d)
     const s = symptomsOf(S, d)
     const tot = dayTotals(S, d)
@@ -56,10 +73,17 @@ export function monthSummary(S, rows) {
     const x = symptomDays[id] || (symptomDays[id] = { days: 0, severe: 0 })
     x.days++; if (v === 3) x.severe++
   }
-  const habits = habitList(S).map(h => ({ id: h.id, name: h.name, days: rows.filter(r => r.habits.includes(h.id)).length }))
-  const supps = suppList(S).map(x => ({ id: x.id, name: x.name, days: rows.filter(r => r.supps.includes(x.id)).length }))
+  const habits = habitList(S).map(h => ({ id: h.id, name: h.name, std: !!h.std, days: rows.filter(r => r.habits.includes(h.id)).length }))
+  const supps = suppList(S).map(x => ({ id: x.id, name: x.name, std: !!x.std, days: rows.filter(r => r.supps.includes(x.id)).length }))
   const goal = kcalGoalOf(S)
+  const proteins = rows.map(r => r.protein).filter(v => v != null)
+  const reasons = {}
+  for (const r of rows) for (const id of r.reasons) reasons[id] = (reasons[id] || 0) + 1
   return {
+    kcalTotal: kcals.reduce((a, b) => a + b, 0),
+    protein: proteins.length ? Math.round(proteins.reduce((a, b) => a + b, 0) / proteins.length) : null,
+    reasons: Object.entries(reasons).map(([id, days]) => ({ id, days })).sort((a, b) => b.days - a.days),
+    moodDist: [1, 2, 3, 4, 5].map(v => moods.filter(m => m === v).length),
     days: rows.length,
     logged: rows.filter(r => r.mood != null || r.kcal != null || r.worst || r.habits.length || r.supps.length).length,
     trained: rows.filter(r => r.trained).length,
@@ -105,15 +129,16 @@ export function monthInsights(S, rows) {
   const push = (kind, r, extra) => { if (r) out.push({ kind, ...extra, ...r, size: Math.abs(r.with - r.without) / (kind.startsWith('symptom') ? 100 : 4) }) }
   push('moodTraining', moodSplit(rows, r => r.trained))
   const habits = habitList(S)
-  for (const h of habits) push('moodHabit', moodSplit(rows, r => r.habits.includes(h.id)), { key: h.id, name: h.name })
-  for (const x of suppList(S)) push('moodSupp', moodSplit(rows, r => r.supps.includes(x.id)), { key: x.id, name: x.name })
+  for (const h of habits) push('moodHabit', moodSplit(rows, r => r.habits.includes(h.id)), { key: h.id, name: h.name, std: !!h.std })
+  for (const x of suppList(S)) push('moodSupp', moodSplit(rows, r => r.supps.includes(x.id)), { key: x.id, name: x.name, std: !!x.std })
   const goal = kcalGoalOf(S)
   if (goal) push('moodFood', moodSplit(rows.filter(r => r.kcal != null), r => r.kcal <= goal), { goal })
   const seen = [...new Set(rows.flatMap(r => Object.keys(r.symptoms)))]
   for (const id of seen) {
     push('moodSymptom', moodSplit(rows, r => !!r.symptoms[id]), { key: id })
     push('symptomTraining', symptomSplit(rows, id, r => r.trained), { key: id })
-    for (const h of habits) push('symptomHabit', symptomSplit(rows, id, r => r.habits.includes(h.id)), { key: id, habit: h.id, name: h.name })
+    for (const h of habits) push('symptomHabit', symptomSplit(rows, id, r => r.habits.includes(h.id)), { key: id, habit: h.id, name: h.name, std: !!h.std })
+    for (const x of suppList(S)) push('symptomSupp', symptomSplit(rows, id, r => r.supps.includes(x.id)), { key: id, supp: x.id, name: x.name, std: !!x.std })
   }
   return out.sort((a, b) => b.size - a.size)
 }

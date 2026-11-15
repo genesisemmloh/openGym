@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t, getLang, baseLang, dateLocale } from '../lib/i18n.js'
-import { fmtDate, todayISO, uid } from '../lib/format.js'
+import { fmtDate, fmtDateRange, todayISO, uid } from '../lib/format.js'
+import DateField from '../components/DateField.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button, Segmented, Check, TextField, TextArea, SearchField, NumberField } from '../components/ui.jsx'
 import {
@@ -10,16 +11,17 @@ import {
   moodOf, withMood, symptomList, symptomsOf, withSymptoms, nextSeverity, withOwnSymptom,
   habitList, withHabitDef, habitsDoneOn, withHabitToggled, HABIT_DEFAULTS, SYMPTOM_LABEL, hiddenSymptoms, withSymptomShown,
   SUPP_IDEAS, DOSE_MAX, suppList, withSuppDef, suppsTakenOn, withSuppToggled,
-  foodsOn, withFood, dayTotals, kcalFor, recentFoods, kcalGoalOf, shiftDay, shiftMonth, monthDays,
+  foodsOn, withFood, dayTotals, kcalFor, recentFoods, kcalGoalOf, shiftDay, periodRange, shiftPeriod,
   favFoods, isFavFood, withFav, myFoodsMatching,
 } from '../lib/wellbeing.js'
-import { monthRows, monthSummary, monthInsights } from '../lib/wellbeing-insights.js'
+import { rangeRows, daysBetween, monthSummary, monthInsights } from '../lib/wellbeing-insights.js'
 import { searchFoods } from '../lib/food-search.js'
 import { searchBasic } from '../lib/basic-foods.js'
 import './Wellbeing.css'
 
 // The Wellbeing tab (fork module, lib/wellbeing.js): Today logs food, mood, symptoms and habits for
-// one day; Month lays the days out next to the training log and points at the patterns.
+// one day; Detail lays a week, a month, a year or your own dates out next to the training log, with
+// a summary and the patterns of that stretch.
 
 const ui = () => useUI.getState()
 const store = () => useStore.getState()
@@ -31,8 +33,8 @@ export default function Wellbeing() {
   return <>
     <div className="hdr"><div><h1>{t('Wellbeing')}</h1><div className="sub">{t('How you eat, feel and live, next to your training.')}</div></div></div>
     <Segmented className="wb-seg" value={tab} onChange={setTab}
-      options={[{ value: 'day', label: t('Day') }, { value: 'month', label: t('Month') }]} />
-    {tab === 'day' ? <DayView /> : <MonthView />}
+      options={[{ value: 'day', label: t('Day') }, { value: 'detail', label: t('Detail') }]} />
+    {tab === 'day' ? <DayView /> : <DetailView />}
   </>
 }
 
@@ -438,51 +440,91 @@ function FoodForm({ S, day, meal, setMeal, pick, back, close }) {
 }
 
 
-/* ============================ the month ============================ */
+/* ============================ the detail: a week, a month, a year or your own dates ============================ */
 
 const WEEKDAYS = () => {
   // Monday first, in the reader's language.
-  const base = new Date(2024, 0, 1) // a Monday
-  return Array.from({ length: 7 }, (_, i) => new Date(base.getFullYear(), 0, 1 + i).toLocaleDateString(dateLocale(), { weekday: 'narrow' }))
+  return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(dateLocale(), { weekday: 'narrow' }))
+}
+const dayClass = (r, d, today) => 'wb-day' + (r?.mood ? ' m' + r.mood : '') + (d > today ? ' fut' : '') + (d === today ? ' today' : '')
+const dayTitle = (r, d) => (r ? [fmtDate(d, true), r.mood ? t(MOOD_LABEL[r.mood]) : '', r.trained ? t('Trained') : '', r.worst ? t('Symptoms') : ''].filter(Boolean).join(' · ') : fmtDate(d, true))
+
+function periodLabel(kind, from, to) {
+  if (kind === 'month') return new Date(from + 'T12:00:00').toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' })
+  if (kind === 'year') return from.slice(0, 4)
+  return fmtDateRange(from, to, true)
 }
 
-function MonthView() {
+/** The days of the range laid out: a calendar with weekday rows for up to six weeks, a compact heat map beyond. */
+function RangeCalendar({ from, to, byDay, today }) {
+  const days = daysBetween(from, to)
+  const lead = (new Date(from + 'T12:00:00').getDay() + 6) % 7
+  if (days.length <= 42) {
+    return <div className="wb-cal" role="grid">
+      {WEEKDAYS().map((w, i) => <div key={'w' + i} className="wb-cal-wd" aria-hidden="true">{w}</div>)}
+      {Array.from({ length: lead }, (_, i) => <div key={'e' + i} />)}
+      {days.map(d => {
+        const r = byDay[d]
+        return <div key={d} className={dayClass(r, d, today)} title={dayTitle(r, d)}>
+          <span className="wb-day-n">{Number(d.slice(8))}</span>
+          <span className="wb-day-marks">{r?.trained && <span className="wb-dot tr" />}{r?.worst > 0 && <span className={'wb-dot sy s' + r.worst} />}</span>
+        </div>
+      })}
+    </div>
+  }
+  // A year or a long range: one column per week, Monday at the top, a month's initial over the week it starts.
+  // Drawn as one SVG that scales to the width, so 53 weeks fit a phone.
+  const cells = [...Array(lead).fill(null), ...days]
+  const weeks = Math.ceil(cells.length / 7)
+  const C = 10, G = 2, TOP = 12
+  return <svg className="wb-heat" viewBox={`0 0 ${weeks * (C + G)} ${TOP + 7 * (C + G)}`} role="img" aria-label={t('Calendar')}>
+    {cells.map((d, i) => {
+      if (!d) return null
+      const x = Math.floor(i / 7) * (C + G), y = TOP + (i % 7) * (C + G)
+      const r = byDay[d]
+      return <g key={d}>
+        {d.endsWith('-01') && <text x={x} y={8} className="wb-heat-m">{new Date(d + 'T12:00:00').toLocaleDateString(dateLocale(), { month: 'narrow' })}</text>}
+        <rect x={x} y={y} width={C} height={C} rx={2} className={'wb-hc' + (r?.mood ? ' m' + r.mood : '') + (d > today ? ' fut' : '')}><title>{dayTitle(r, d)}</title></rect>
+        {r?.trained && <rect x={x + 1} y={y + C - 2.5} width={C - 2} height={2} rx={1} className="wb-hc-tr" />}
+        {r?.worst > 0 && <circle cx={x + C - 2.5} cy={y + 2.5} r={1.7} className="wb-hc-sy" />}
+      </g>
+    })}
+  </svg>
+}
+
+function DetailView() {
   const S = useStore(s => s.S)
   const today = todayISO()
-  const [ym, setYm] = useState(today.slice(0, 7))
-  const rows = useMemo(() => monthRows(S, ym, today), [S, ym, today])
+  const [kind, setKind] = useState('week')
+  const [anchor, setAnchor] = useState(today)
+  const [custom, setCustom] = useState({ from: shiftDay(today, -29), to: today })
+  const range = kind === 'custom' ? (custom.from <= custom.to ? custom : { from: custom.to, to: custom.from }) : periodRange(kind, anchor)
+  const rows = useMemo(() => rangeRows(S, range.from, range.to, today), [S, range.from, range.to, today])
   const sum = useMemo(() => monthSummary(S, rows), [S, rows])
   const insights = useMemo(() => monthInsights(S, rows), [S, rows])
   const byDay = Object.fromEntries(rows.map(r => [r.d, r]))
-  const days = monthDays(ym)
-  const lead = (new Date(days[0] + 'T12:00:00').getDay() + 6) % 7
-  const label = new Date(ym + '-15T12:00:00').toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' })
   const symLabel = id => { const x = symptomList(S).find(s => s.id === id); return x ? (x.own ? x.label : t(x.label)) : id }
+  const reasonLabel = id => { const x = reasonList(S).find(r => r.id === id); return x ? (x.own ? x.label : t(x.label)) : id }
+  const pct = n => Math.round(n / Math.max(1, sum.days) * 100) + '%'
+  const named = x => (x.std ? t(x.name) : x.name)
 
   return <>
-    <div className="wb-nav">
-      <button className="iconbtn" onClick={() => setYm(shiftMonth(ym, -1))} aria-label={t('Previous month')}><Icon name="chevronLeft" /></button>
-      <div className="wb-nav-t wb-cap">{label}</div>
-      <button className="iconbtn" disabled={ym >= today.slice(0, 7)} onClick={() => setYm(shiftMonth(ym, 1))} aria-label={t('Next month')}><Icon name="chevronRight" /></button>
-    </div>
+    <Segmented className="wb-seg wb-kinds" value={kind} onChange={k => { setKind(k); setAnchor(today) }}
+      options={[{ value: 'week', label: t('Week') }, { value: 'month', label: t('Month') }, { value: 'year', label: t('Year') }, { value: 'custom', label: t('Custom') }]} />
+
+    {kind === 'custom'
+      ? <div className="wb-custom">
+        <label><span>{t('From')}</span><DateField value={custom.from} max={today} onChange={v => setCustom(c => ({ ...c, from: v }))} label={t('From')} /></label>
+        <label><span>{t('To')}</span><DateField value={custom.to} max={today} onChange={v => setCustom(c => ({ ...c, to: v }))} label={t('To')} /></label>
+      </div>
+      : <div className="wb-nav">
+        <button className="iconbtn" onClick={() => setAnchor(shiftPeriod(kind, anchor, -1))} aria-label={t('Previous')}><Icon name="chevronLeft" /></button>
+        <div className="wb-nav-t wb-cap">{periodLabel(kind, range.from, range.to)}</div>
+        <button className="iconbtn" disabled={range.to >= today} onClick={() => setAnchor(shiftPeriod(kind, anchor, 1))} aria-label={t('Next')}><Icon name="chevronRight" /></button>
+      </div>}
 
     <section className="card wb-card">
-      <div className="wb-cal" role="grid" aria-label={label}>
-        {WEEKDAYS().map((w, i) => <div key={'w' + i} className="wb-cal-wd" aria-hidden="true">{w}</div>)}
-        {Array.from({ length: lead }, (_, i) => <div key={'e' + i} />)}
-        {days.map(d => {
-          const r = byDay[d]
-          const future = d > today
-          return <div key={d} className={'wb-day' + (r?.mood ? ' m' + r.mood : '') + (future ? ' fut' : '') + (d === today ? ' today' : '')}
-            title={r ? [fmtDate(d, true), r.mood ? t(MOOD_LABEL[r.mood]) : '', r.trained ? t('Trained') : '', r.worst ? t('Symptoms') : ''].filter(Boolean).join(' · ') : fmtDate(d, true)}>
-            <span className="wb-day-n">{Number(d.slice(8))}</span>
-            <span className="wb-day-marks">
-              {r?.trained && <span className="wb-dot tr" />}
-              {r?.worst > 0 && <span className={'wb-dot sy s' + r.worst} />}
-            </span>
-          </div>
-        })}
-      </div>
+      <RangeCalendar from={range.from} to={range.to} byDay={byDay} today={today} />
       <div className="wb-legend small dim">
         <span><span className="wb-sw m1" />{t('Rough')}</span><span><span className="wb-sw m5" />{t('Great')}</span>
         <span><span className="wb-dot tr" />{t('Trained')}</span><span><span className="wb-dot sy s2" />{t('Symptoms')}</span>
@@ -490,41 +532,47 @@ function MonthView() {
     </section>
 
     <section className="card wb-card">
-      <h2 className="wb-h"><Icon name="chart" />{t('The month in numbers')}</h2>
+      <h2 className="wb-h"><Icon name="chart" />{t('Summary')}<span className="wb-count">{t('{0} of {1} days logged', sum.logged, sum.days)}</span></h2>
       <div className="wb-stats">
         <Stat v={sum.mood != null ? `${fmt1(sum.mood)} ${MOOD_FACE[Math.round(sum.mood)]}` : '–'} l={t('Average mood')} />
-        <Stat v={sum.trained} l={t('Days trained')} />
-        <Stat v={sum.kcal != null ? sum.kcal.toLocaleString(dateLocale()) : '–'} l={t('Average kcal')} />
+        <Stat v={`${sum.trained}`} l={t('Days trained')} />
+        <Stat v={sum.kcal != null ? sum.kcal.toLocaleString(dateLocale()) : '–'} l={t('Average kcal a day')} />
+        <Stat v={sum.protein != null ? `${sum.protein} g` : '–'} l={t('Average protein a day')} />
+        <Stat v={sum.kcalTotal ? sum.kcalTotal.toLocaleString(dateLocale()) : '–'} l={t('Calories in total')} />
         <Stat v={sum.symptoms.reduce((a, s) => a + s.days, 0)} l={t('Symptom days')} />
       </div>
-      {sum.symptoms.length > 0 && <div className="wb-bars">
-        {sum.symptoms.slice(0, 6).map(s => <div key={s.id} className="wb-brow">
-          <span>{symLabel(s.id)}</span><span className="wb-bline"><span style={{ width: Math.round(s.days / Math.max(1, sum.days) * 100) + '%' }} /></span>
-          <span className="dim small">{t('{0} days', s.days)}{s.severe ? ` · ${t('{0} severe', s.severe)}` : ''}</span>
-        </div>)}
+      {sum.moodDays > 0 && <div className="wb-dist" aria-label={t('Average mood')}>
+        {sum.moodDist.map((n, i) => n > 0 && <span key={i} className={'m' + (i + 1)} style={{ flex: n }} title={`${t(MOOD_LABEL[i + 1])}: ${n}`} />)}
       </div>}
-      {sum.habits.length > 0 && <div className="wb-bars">
-        {sum.habits.map(h => <div key={h.id} className="wb-brow">
-          <span>{h.name}</span><span className="wb-bline ok"><span style={{ width: Math.round(h.days / Math.max(1, sum.days) * 100) + '%' }} /></span>
-          <span className="dim small">{h.days}/{sum.days}</span>
-        </div>)}
-      </div>}
-      {sum.supps.length > 0 && <div className="wb-bars">
-        {sum.supps.map(x => <div key={x.id} className="wb-brow">
-          <span>{x.name}</span><span className="wb-bline sup"><span style={{ width: Math.round(x.days / Math.max(1, sum.days) * 100) + '%' }} /></span>
-          <span className="dim small">{x.days}/{sum.days}</span>
-        </div>)}
-      </div>}
+      {kcalGoalOf(S) && sum.kcalDays > 0 && <div className="small dim wb-sub">{t('Over your calorie goal on {0} of {1} days.', sum.overGoal, sum.kcalDays)}</div>}
     </section>
+
+    {sum.reasons.length > 0 && <Bars icon="smile" title={t('What your mood had to do with')} items={sum.reasons.slice(0, 6).map(x => ({ id: x.id, label: reasonLabel(x.id), n: x.days }))} total={sum.moodDays} cls="mood" />}
+    {sum.symptoms.length > 0 && <Bars icon="warning" title={t('Symptoms')} items={sum.symptoms.map(x => ({ id: x.id, label: symLabel(x.id), n: x.days, extra: x.severe ? t('{0} severe', x.severe) : '' }))} total={sum.days} />}
+    {sum.supps.length > 0 && <Bars icon="plusCircle" title={t('Supplements')} items={sum.supps.map(x => ({ id: x.id, label: named(x), n: x.days }))} total={sum.days} cls="sup" pct={pct} />}
+    {sum.habits.length > 0 && <Bars icon="checkCircle" title={t('Habits')} items={sum.habits.map(x => ({ id: x.id, label: named(x), n: x.days }))} total={sum.days} cls="ok" pct={pct} />}
 
     <section className="card wb-card">
       <h2 className="wb-h"><Icon name="lightbulb" />{t('Patterns')}</h2>
       {insights.length ? <ul className="wb-ins">
-        {insights.slice(0, 8).map((x, i) => <li key={i}>{insightText(x, symLabel)}</li>)}
-      </ul> : <div className="small dim">{t('Log a few more days (mood on at least 3 days of each kind) and the patterns of your month show up here.')}</div>}
+        {insights.slice(0, 10).map((x, i) => <li key={i}>{insightText(x, symLabel)}</li>)}
+      </ul> : <div className="small dim">{t('Log a few more days (mood on at least 3 days of each kind) and the patterns of this period show up here.')}</div>}
       <div className="tiny dim wb-foot">{t('These are things that happened together, not proof that one causes the other.')}</div>
     </section>
   </>
+}
+
+function Bars({ icon, title, items, total, cls = '', pct }) {
+  return <section className="card wb-card">
+    <h2 className="wb-h"><Icon name={icon} />{title}</h2>
+    <div className="wb-bars">
+      {items.map(x => <div key={x.id} className="wb-brow">
+        <span>{x.label}</span>
+        <span className={'wb-bline ' + cls}><span style={{ width: Math.round(x.n / Math.max(1, total) * 100) + '%' }} /></span>
+        <span className="dim small">{pct ? pct(x.n) : t('{0} days', x.n)}{x.extra ? ` · ${x.extra}` : ''}</span>
+      </div>)}
+    </div>
+  </section>
 }
 
 function Stat({ v, l }) {
@@ -533,14 +581,16 @@ function Stat({ v, l }) {
 
 function insightText(x, symLabel) {
   const a = fmt1(x.with), b = fmt1(x.without)
+  const name = x.std ? t(x.name) : x.name
   switch (x.kind) {
     case 'moodTraining': return t('Your mood averaged {0} on days you trained and {1} on days you did not.', a, b)
-    case 'moodHabit': return t('On days with “{0}” your mood averaged {1}, without it {2}.', x.name, a, b)
-    case 'moodSupp': return t('On days you took {0} your mood averaged {1}, on the others {2}.', x.name, a, b)
+    case 'moodHabit': return t('On days with “{0}” your mood averaged {1}, without it {2}.', name, a, b)
+    case 'moodSupp': return t('On days you took {0} your mood averaged {1}, on the others {2}.', name, a, b)
     case 'moodFood': return t('On days at or under your calorie goal your mood averaged {0}, over it {1}.', a, b)
     case 'moodSymptom': return t('On days with {0} your mood averaged {1}, without it {2}.', baseLang(getLang()) === 'de' ? symLabel(x.key) : symLabel(x.key).toLowerCase(), a, b)
     case 'symptomTraining': return t('{0} showed up on {1}% of the days you trained and {2}% of the days you did not.', symLabel(x.key), x.with, x.without)
-    case 'symptomHabit': return t('{0} showed up on {1}% of the days with “{2}” and {3}% of the days without it.', symLabel(x.key), x.with, x.name, x.without)
+    case 'symptomHabit': return t('{0} showed up on {1}% of the days with “{2}” and {3}% of the days without it.', symLabel(x.key), x.with, name, x.without)
+    case 'symptomSupp': return t('{0} showed up on {1}% of the days you took {2} and {3}% of the days you did not.', symLabel(x.key), x.with, name, x.without)
     default: return ''
   }
 }

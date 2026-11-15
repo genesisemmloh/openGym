@@ -33,7 +33,7 @@ describe('wellbeing month', () => {
     const sum = monthSummary(S, monthRows(S, '2026-11', day(10)))
     expect(sum).toMatchObject({ days: 10, logged: 10, trained: 5, mood: 3.5, kcal: 2200, overGoal: 5 })
     expect(sum.symptoms).toEqual([{ id: 'headache', days: 5, severe: 1 }])
-    expect(sum.habits).toEqual([{ id: 'water', name: 'Water', days: 5 }])
+    expect(sum.habits).toEqual([{ id: 'water', name: 'Water', std: false, days: 5 }])
   })
 
   it('finds the patterns on both sides of a comparison', () => {
@@ -52,5 +52,20 @@ describe('wellbeing month', () => {
     const S = sample()
     const rows = monthRows(S, '2026-11', day(10)).slice(0, 6) // five trained days, one rest day
     expect(monthInsights(S, rows).filter(x => x.kind === 'moodTraining')).toEqual([])
+  })
+})
+
+describe('wellbeing ranges', () => {
+  it('reads any range of days, and sums calories, protein, reasons and the mood spread', async () => {
+    const { rangeRows, daysBetween } = await import('./wellbeing-insights.js')
+    expect(daysBetween('2026-12-30', '2027-01-02')).toEqual(['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02'])
+    const S = sample()
+    S.wbMood = withMood(S.wbMood, day(1), { mood: 5, reasons: ['work', 'sleep'] }, 99)
+    const rows = rangeRows(S, day(1), day(14), day(10))
+    expect(rows).toHaveLength(10)
+    const sum = monthSummary(S, rows)
+    expect(sum.kcalTotal).toBe(5 * 1800 + 5 * 2600)
+    expect(sum.moodDist).toEqual([0, 5, 0, 0, 5])
+    expect(sum.reasons).toEqual([{ id: 'work', days: 1 }, { id: 'sleep', days: 1 }])
   })
 })

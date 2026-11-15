@@ -5,7 +5,7 @@ import {
   kcalFor, recentFoods, kcalGoalOf, monthDays, shiftMonth, shiftDay,
   suppList, withSuppDef, suppsTakenOn, withSuppToggled, HABIT_DEFAULTS, SUPP_DEFAULTS, withSymptomShown, hiddenSymptoms,
   favFoods, isFavFood, withFav, myFoodsMatching,
-  reasonList, hiddenReasons, withReasonShown, withOwnReason,
+  reasonList, hiddenReasons, withReasonShown, withOwnReason, periodRange, shiftPeriod,
 } from './wellbeing.js'
 
 describe('mood reasons', () => {
@@ -158,6 +158,19 @@ describe('favourite foods', () => {
     S.wbFoodFavs = withFav(S.wbFoodFavs, 'Avena', null, 4)
     expect(isFavFood(S, 'Avena')).toBe(false)
     expect(STAMPED_MAPS).toContain('wbFoodFavs')
+  })
+})
+
+describe('periods', () => {
+  it('covers a Monday-first week, a calendar month and year, and moves by one', () => {
+    expect(periodRange('week', '2026-11-18')).toEqual({ from: '2026-11-16', to: '2026-11-22' })
+    expect(periodRange('week', '2026-11-22')).toEqual({ from: '2026-11-16', to: '2026-11-22' })
+    expect(periodRange('week', '2026-11-18', 0)).toEqual({ from: '2026-11-15', to: '2026-11-21' })
+    expect(periodRange('month', '2026-02-10')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(periodRange('year', '2026-06-01')).toEqual({ from: '2026-01-01', to: '2026-12-31' })
+    expect(shiftPeriod('week', '2026-11-18', -1)).toBe('2026-11-11')
+    expect(shiftPeriod('month', '2026-01-31', 1)).toBe('2026-02-01')
+    expect(shiftPeriod('year', '2026-06-01', -1)).toBe('2025-01-01')
   })
 })
 

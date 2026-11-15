@@ -396,3 +396,33 @@ export function shiftDay(iso, delta) {
   d.setDate(d.getDate() + delta)
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
 }
+
+/* ---------------- periods for the Detail view ---------------- */
+
+const isoDay = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+
+/**
+ * The days a period covers around `anchor` (an ISO day): 'week' runs Monday to Sunday (or Sunday to
+ * Saturday with weekStart 0), 'month' and 'year' are calendar ones. { from, to }.
+ */
+export function periodRange(kind, anchor, weekStart = 1) {
+  const d = new Date(anchor + 'T12:00:00')
+  if (kind === 'week') {
+    const back = (d.getDay() - weekStart + 7) % 7
+    const from = new Date(d); from.setDate(d.getDate() - back)
+    const to = new Date(from); to.setDate(from.getDate() + 6)
+    return { from: isoDay(from), to: isoDay(to) }
+  }
+  if (kind === 'year') return { from: `${d.getFullYear()}-01-01`, to: `${d.getFullYear()}-12-31` }
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return { from: isoDay(new Date(d.getFullYear(), d.getMonth(), 1)), to: isoDay(last) }
+}
+
+/** `anchor` moved by one period of `kind`, forwards (1) or back (-1). */
+export function shiftPeriod(kind, anchor, dir) {
+  const d = new Date(anchor + 'T12:00:00')
+  if (kind === 'week') d.setDate(d.getDate() + 7 * dir)
+  else if (kind === 'year') d.setFullYear(d.getFullYear() + dir, 0, 1)
+  else d.setMonth(d.getMonth() + dir, 1)
+  return isoDay(d)
+}
