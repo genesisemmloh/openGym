@@ -43,6 +43,8 @@ import { ipv6Groups, guardedLookup, pushEndpointError, MAX_PUSH_ENDPOINT, outbou
 import { createIntegrations } from './integrations/index.js';
 import { integrationRoutes } from './integrations/routes.js';
 import { buildIcs } from './integrations/calendar.js';
+import { createFoodSearch } from './food-search.js';
+const foodSearch = createFoodSearch();
 import { deriveKey, seal as sealText, open as openSealed } from './integrations/crypto.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
 import { wrappedPushYear, wrappedSummary, wrappedPushOwed, wrappedPush } from './wrapped.js';
@@ -2613,6 +2615,15 @@ const routes = {
     const { user } = s;
     const renew = s.bearer && s.kind !== 'c' && s.exp - Date.now() < SESSION_DAYS * 86400000 / 2;
     json(res, 200, { user: publicUser(user), ...(renew ? { token: makeSession(user) } : {}) });
+  },
+
+  // Wellbeing (fork): food search through Open Food Facts, signed-in users only (food-search.js).
+  'GET /api/food/search': async (req, res) => {
+    const s = sessionOf(req);
+    if (!s) return json(res, 401, { error: 'not signed in' });
+    const u = new URL(req.url, 'http://local');
+    const { status, body } = await foodSearch.search(s.user.id, u.searchParams.get('q'), u.searchParams.get('lang'));
+    json(res, status, body);
   },
 
   'POST /api/register/options': async (req, res) => {

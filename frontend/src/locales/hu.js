@@ -3946,6 +3946,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health vagy Health Connect, pulzus és regenerációs tippek.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "Kezdőtől Elitig a fő gyakorlataidban, a testsúlyodhoz mérve.",
   "Body and health": "Test és egészség",
+  "Wellbeing": "Jóllét",
   "Change it anytime in Settings → Modules.": "Bármikor módosíthatod: Beállítások → Modulok.",
   "Extras": "Extrák",
   "Film a set and watch it back right under the row.": "Vegyél fel egy sorozatot, és nézd vissza rögtön a sor alatt.",

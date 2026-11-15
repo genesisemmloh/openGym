@@ -53,6 +53,13 @@ for (const file of readdirSync(localesDir).filter(f => f.endsWith('.js'))) {
   for (const key of Object.keys(pack)) defined.add(key)
 }
 
+// Fork-only packs (src/locales/extra/): the Wellbeing module's words, in es and de only.
+const extraDir = join(localesDir, 'extra')
+for (const file of readdirSync(extraDir).filter(f => f.endsWith('.js'))) {
+  const pack = (await import(pathToFileURL(join(extraDir, file)).href)).default
+  for (const key of Object.keys(pack)) defined.add(key)
+}
+
 const missing = [...used.keys()].filter(k => !defined.has(k)).sort()
 
 if (!missing.length) {

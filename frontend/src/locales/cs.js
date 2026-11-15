@@ -3907,6 +3907,7 @@ export default {
   'Apple Health or Health Connect, heart rate and recovery tips.': 'Apple Health nebo Health Connect, tep a tipy na regeneraci.',
   'Beginner to Elite for your main lifts, measured against your body weight.': "Od začátečníka po elitu u tvých hlavních cviků, měřeno vůči tvé tělesné váze.",
   'Body and health': 'Tělo a zdraví',
+  'Wellbeing': 'Pohoda',
   'Change it anytime in Settings → Modules.': 'Kdykoli to změníš v Nastavení → Moduly.',
   'Extras': 'Doplňky',
   'Film a set and watch it back right under the row.': "Natoč sérii a přehraj si ji přímo pod řádkem.",

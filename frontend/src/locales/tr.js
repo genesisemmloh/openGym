@@ -3943,6 +3943,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health veya Health Connect, nabız ve toparlanma ipuçları.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "Ana hareketlerinde Başlangıç’tan Elit’e, vücut ağırlığına göre.",
   "Body and health": "Vücut ve sağlık",
+  "Wellbeing": "İyi oluş",
   "Change it anytime in Settings → Modules.": "İstediğin zaman Ayarlar → Modüller’den değiştirebilirsin.",
   "Extras": "Ekstralar",
   "Film a set and watch it back right under the row.": "Bir seti çek ve hemen satırın altında izle.",

@@ -3963,6 +3963,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health oder Health Connect, Puls und Tipps zur Erholung.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "Einsteiger bis Elite für deine Hauptübungen, gemessen an deinem Körpergewicht.",
   "Body and health": "Körper und Gesundheit",
+  "Wellbeing": "Wohlbefinden",
   "Change it anytime in Settings → Modules.": "Jederzeit änderbar unter Einstellungen → Module.",
   "Extras": "Extras",
   "Film a set and watch it back right under the row.": "Film einen Satz und schau ihn dir direkt unter der Zeile an.",

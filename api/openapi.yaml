@@ -378,6 +378,31 @@ paths:
                 passwordLogin: { value: { invite_only: true, allow_guest: false, password_login: true } }
                 media: { value: { invite_only: false, allow_guest: true, media: { imageMB: 2, gifMB: 8, videoMB: 100, videoSec: 60, audioMB: 2, quotaMB: 200, workouts: true, sounds: true, avatar: true } } }
 
+  /api/food/search:
+    get:
+      tags: [meta]
+      operationId: searchFood
+      summary: Search foods (Wellbeing, fork)
+      description: |
+        Asks Open Food Facts' search service for products matching the words, on the signed-in
+        user's behalf, and answers the few fields the app reads. Only the words leave the server.
+        Answers are cached for an hour; one user may ask 20 times a minute.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 60 } }
+        - { name: lang, in: query, required: false, schema: { type: string, pattern: '^[a-z]{2}$' } }
+      responses:
+        '200':
+          description: Matching products.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products: { type: array, items: { type: object } }
+        '400': { description: No search words. }
+        '401': { description: Not signed in. }
+        '429': { description: Too many searches. }
+        '502': { description: The food service did not answer. }
   /api/me:
     get:
       tags: [auth]

@@ -3936,6 +3936,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health 或 Health Connect、心率和恢復建議。",
   "Beginner to Elite for your main lifts, measured against your body weight.": "主要動作從入門到菁英，依你的體重衡量。",
   "Body and health": "身體與健康",
+  "Wellbeing": "身心狀態",
   "Change it anytime in Settings → Modules.": "隨時可以在 設定 → 模組 中更改。",
   "Extras": "額外功能",
   "Film a set and watch it back right under the row.": "拍下一組，直接在這一列下方回看。",

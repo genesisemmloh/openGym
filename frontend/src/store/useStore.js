@@ -106,6 +106,9 @@ export const DEF = {
   // (lib/daily-form.js), merged per day like dayNotes. `dailyForm` is its switch: undefined until
   // asked once, then true or false.
   dayForm: {},
+  // Wellbeing (fork module, lib/wellbeing.js): food, mood, symptoms and habits, each a stamped map
+  // merged per entry like dayNotes; kcalGoal is a plain setting.
+  wbFood: {}, wbMood: {}, wbSymptoms: {}, wbHabits: {}, wbHabitDefs: {}, wbSymptomDefs: {}, wbSupps: {}, wbSuppDefs: {}, wbFoodFavs: {}, wbReasonDefs: {}, kcalGoal: null,
   // Body measurements (#82, #699): one check-in per day; canonical cm, kg or % according to
   // the field's unit (lib/measurements.js); merged like weigh-ins (lib/sync-merge.js).
   measurements: [], measurementEnabled: null, customMeasurements: [],

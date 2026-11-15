@@ -18,6 +18,9 @@ export {
 // Vite code-splits locale, instruction and exercise-name packs via import.meta.glob. They are
 // lazy, so the production bundle ships English only until another language is selected.
 const localePacks = import.meta.glob('../locales/*.js')
+// Fork-only packs (locales/extra/<lang>.js): the Wellbeing module's words, written for es and de.
+// Merged over the main pack; any other language shows them in English.
+const extraPacks = import.meta.glob('../locales/extra/*.js')
 const instrPacks = import.meta.glob('../instr/*.js')
 const exerciseNamePacks = import.meta.glob('../exercise-names/*.js')
 const descPacks = import.meta.glob('../exercise-desc/*.js')
@@ -68,11 +71,13 @@ export async function setLang(l, showEn, enOnly) {
   // The three packs are fetched side by side: one after the other, a start in any language but
   // English waited three round trips before Home could draw.
   const pack = async (packs, key, fallback) => { try { return (await packs[key]()).default } catch (e) { return fallback } }
-  const [dict, instr, exerciseNames] = await Promise.all([
+  const [mainDict, extraDict, instr, exerciseNames] = await Promise.all([
     base === 'en' ? {} : pack(localePacks, '../locales/' + base + '.js', {}),
+    base === 'en' || !extraPacks['../locales/extra/' + base + '.js'] ? {} : pack(extraPacks, '../locales/extra/' + base + '.js', {}),
     base === 'en' || !INSTR_LANGS.includes(base) ? null : pack(instrPacks, '../instr/' + base + '.js', null),
     base === 'en' || !EXERCISE_NAME_LANGS.includes(base) ? null : pack(exerciseNamePacks, '../exercise-names/' + base + '.js', null),
   ])
+  const dict = { ...mainDict, ...extraDict }
   _setLangState(l, derivePack(l, dict), derivePack(l, instr), derivePack(l, exerciseNames), show, only)
   if (detailsLoaded) loadDetails()
   document.documentElement.lang = l

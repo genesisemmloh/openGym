@@ -3943,6 +3943,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health 또는 Health Connect, 심박수와 회복 팁.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "주요 리프트의 입문자부터 엘리트까지, 체중 대비로 측정해요.",
   "Body and health": "몸과 건강",
+  "Wellbeing": "웰빙",
   "Change it anytime in Settings → Modules.": "언제든 설정 → 모듈에서 바꿀 수 있어요.",
   "Extras": "추가 기능",
   "Film a set and watch it back right under the row.": "세트를 촬영하고 바로 그 줄 아래에서 다시 봐요.",

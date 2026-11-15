@@ -3943,6 +3943,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health lub Health Connect, tętno i wskazówki dotyczące regeneracji.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "Od Początkującego do Elity w twoich głównych ćwiczeniach, w odniesieniu do masy ciała.",
   "Body and health": "Ciało i zdrowie",
+  "Wellbeing": "Samopoczucie",
   "Change it anytime in Settings → Modules.": "Zmienisz to w każdej chwili w Ustawienia → Moduły.",
   "Extras": "Dodatki",
   "Film a set and watch it back right under the row.": "Nagraj serię i obejrzyj ją tuż pod wierszem.",

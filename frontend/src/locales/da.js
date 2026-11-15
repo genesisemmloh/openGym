@@ -3902,6 +3902,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health eller Health Connect, puls og restitutionstips.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "Begynder til Elite i dine hovedløft, målt mod din kropsvægt.",
   "Body and health": "Krop og sundhed",
+  "Wellbeing": "Trivsel",
   "Change it anytime in Settings → Modules.": "Ændr det når som helst under Indstillinger → Moduler.",
   "Extras": "Ekstra",
   "Film a set and watch it back right under the row.": "Film et sæt, og se det igen lige under rækken.",

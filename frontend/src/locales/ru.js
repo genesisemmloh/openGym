@@ -3947,6 +3947,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health или Health Connect, пульс и советы по восстановлению.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "От начинающего до элиты в основных упражнениях, относительно веса тела.",
   "Body and health": "Тело и здоровье",
+  "Wellbeing": "Самочувствие",
   "Change it anytime in Settings → Modules.": "Можно поменять в любой момент: Настройки → Модули.",
   "Extras": "Дополнительно",
   "Film a set and watch it back right under the row.": "Сними подход на видео и пересмотри его прямо под строкой.",

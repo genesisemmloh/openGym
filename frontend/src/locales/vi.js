@@ -3907,6 +3907,7 @@ export default {
   'Apple Health or Health Connect, heart rate and recovery tips.': 'Apple Health hoặc Health Connect, nhịp tim và gợi ý hồi phục.',
   'Beginner to Elite for your main lifts, measured against your body weight.': 'Từ Mới bắt đầu đến Thượng thặng cho các bài chính, đo theo thể trọng của bạn.',
   'Body and health': 'Cơ thể và sức khỏe',
+  'Wellbeing': 'Sức khỏe tinh thần',
   'Change it anytime in Settings → Modules.': 'Đổi bất cứ lúc nào trong Cài đặt → Mô-đun.',
   'Extras': 'Bổ sung',
   'Film a set and watch it back right under the row.': 'Quay một hiệp và xem lại ngay dưới dòng đó.',

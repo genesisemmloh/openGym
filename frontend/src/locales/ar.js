@@ -3998,6 +3998,7 @@ export default {
   "Apple Health or Health Connect, heart rate and recovery tips.": "Apple Health أو Health Connect، والنبض ونصائح التعافي.",
   "Beginner to Elite for your main lifts, measured against your body weight.": "من مبتدئ إلى نخبة في تمارينك الأساسية، مقارنةً بوزن جسمك.",
   "Body and health": "الجسم والصحة",
+  "Wellbeing": "العافية",
   "Change it anytime in Settings → Modules.": "غيّرها متى شئت من الإعدادات → الوحدات.",
   "Extras": "إضافات",
   "Film a set and watch it back right under the row.": "صوّر مجموعة وشاهدها مباشرةً تحت السطر.",
