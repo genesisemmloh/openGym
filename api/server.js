@@ -44,6 +44,7 @@ import { createIntegrations } from './integrations/index.js';
 import { integrationRoutes } from './integrations/routes.js';
 import { buildIcs } from './integrations/calendar.js';
 import { createFoodSearch } from './food-search.js';
+import { groupBoard, todayFrom } from './group.js';
 const foodSearch = createFoodSearch();
 import { deriveKey, seal as sealText, open as openSealed } from './integrations/crypto.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
@@ -2624,6 +2625,16 @@ const routes = {
     const u = new URL(req.url, 'http://local');
     const { status, body } = await foodSearch.search(s.user.id, u.searchParams.get('q'), u.searchParams.get('lang'));
     json(res, status, body);
+  },
+
+  // The Group (fork): the board of people who share how often they train (group.js). Counts only;
+  // someone who does not share gets how many do and nothing else.
+  'GET /api/group': async (req, res) => {
+    const s = sessionOf(req);
+    if (!s) return json(res, 401, { error: 'not signed in' });
+    const u = new URL(req.url, 'http://local');
+    const people = db.users.filter(x => !x.disabled).map(x => ({ uid: x.id, name: x.name, S: readStateCached(x.id) || {} }));
+    json(res, 200, groupBoard(people, s.user.id, todayFrom(u.searchParams.get('today'))));
   },
 
   'POST /api/register/options': async (req, res) => {

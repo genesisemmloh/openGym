@@ -403,6 +403,30 @@ paths:
         '401': { description: Not signed in. }
         '429': { description: Too many searches. }
         '502': { description: The food service did not answer. }
+  /api/group:
+    get:
+      tags: [meta]
+      operationId: getGroup
+      summary: The Group board (fork)
+      description: |
+        The people on this server who chose to share how often they train (`S.group.share`),
+        with counts only: workouts this week and this month, minutes, and the week streak.
+        A caller who does not share gets `joined: false` and how many people do, never the list.
+      parameters:
+        - { name: today, in: query, required: false, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: The board.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  joined: { type: boolean }
+                  count: { type: integer }
+                  members: { type: array, items: { type: object } }
+                  totals: { type: object, nullable: true }
+        '401': { description: Not signed in. }
   /api/me:
     get:
       tags: [auth]

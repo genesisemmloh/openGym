@@ -3991,6 +3991,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "Nybörjare till Elit i dina huvudlyft, mätt mot din kroppsvikt.",
   "Body and health": "Kropp och hälsa",
   "Wellbeing": "Välmående",
+  "Group": "Grupp",
   "Change it anytime in Settings → Modules.": "Ändra när du vill i Inställningar → Moduler.",
   "Extras": "Extra",
   "Film a set and watch it back right under the row.": "Filma ett set och titta på det direkt under raden.",

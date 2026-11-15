@@ -3941,6 +3941,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "Від початківця до еліти в основних вправах, відносно ваги тіла.",
   "Body and health": "Тіло і здоров'я",
   "Wellbeing": "Самопочуття",
+  "Group": "Група",
   "Change it anytime in Settings → Modules.": "Змінити можна будь-коли: Налаштування → Модулі.",
   "Extras": "Додатково",
   "Film a set and watch it back right under the row.": "Зніми підхід на відео й переглянь його просто під рядком.",

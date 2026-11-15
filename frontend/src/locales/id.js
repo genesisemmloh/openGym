@@ -3896,6 +3896,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "Pemula hingga Elite untuk latihan utamamu, diukur berdasarkan berat badanmu.",
   "Body and health": "Tubuh dan kesehatan",
   "Wellbeing": "Kesejahteraan",
+  "Group": "Grup",
   "Change it anytime in Settings → Modules.": "Ubah kapan saja di Pengaturan → Modul.",
   "Extras": "Ekstra",
   "Film a set and watch it back right under the row.": "Rekam set latihan dan tonton kembali tepat di bawah barisnya.",

@@ -3947,6 +3947,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "Kezdőtől Elitig a fő gyakorlataidban, a testsúlyodhoz mérve.",
   "Body and health": "Test és egészség",
   "Wellbeing": "Jóllét",
+  "Group": "Csoport",
   "Change it anytime in Settings → Modules.": "Bármikor módosíthatod: Beállítások → Modulok.",
   "Extras": "Extrák",
   "Film a set and watch it back right under the row.": "Vegyél fel egy sorozatot, és nézd vissza rögtön a sor alatt.",

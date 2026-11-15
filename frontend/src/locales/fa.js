@@ -3908,6 +3908,7 @@ export default {
   'Beginner to Elite for your main lifts, measured against your body weight.': 'از مبتدی تا نخبه برای حرکات اصلی شما، در مقایسه با وزن بدنتان.',
   'Body and health': 'بدن و سلامت',
   'Wellbeing': 'تندرستی',
+  'Group': 'گروه',
   'Change it anytime in Settings → Modules.': 'هر وقت خواستید در تنظیمات ← ماژول‌ها تغییرش دهید.',
   'Extras': 'امکانات اضافه',
   'Film a set and watch it back right under the row.': 'از یک ست فیلم بگیرید و درست زیر همان ردیف دوباره تماشایش کنید.',

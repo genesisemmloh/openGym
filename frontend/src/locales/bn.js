@@ -4023,6 +4023,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "আপনার প্রধান লিফটগুলোতে বিগিনার থেকে এলিট, আপনার শরীরের ওজনের তুলনায়।",
   "Body and health": "শরীর ও স্বাস্থ্য",
   "Wellbeing": "সুস্থতা",
+  "Group": "গ্রুপ",
   "Change it anytime in Settings → Modules.": "যেকোনো সময় সেটিংস → মডিউল থেকে বদলাতে পারেন।",
   "Extras": "এক্সট্রা",
   "Film a set and watch it back right under the row.": "একটি সেট ভিডিও করুন আর সারির ঠিক নিচেই আবার দেখুন।",

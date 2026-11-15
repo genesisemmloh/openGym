@@ -102,6 +102,7 @@ const StructuralBalance = lazyView(() => import('./views/StructuralBalance.jsx')
 const Tools = lazyView(() => import('./views/Tools.jsx'))
 const Journal = lazyView(() => import('./views/Journal.jsx'))
 const Wellbeing = lazyView(() => import('./views/Wellbeing.jsx'))
+const Group = lazyView(() => import('./views/Group.jsx'))
 const ProgressPhotos = lazyView(() => import('./views/ProgressPhotos.jsx'))
 // The trainer dashboard (docs/TRAINERS.md): only for sessions that train someone or lead a gym.
 const Trainer = lazyView(() => import('./views/Trainer.jsx'))
@@ -415,6 +416,7 @@ function Shell() {
       <Route path="/tools" element={<Tools />} />
       <Route path="/journal" element={<Journal />} />
       {isOn(S, 'wellbeing') && <Route path="/wellbeing" element={<Wellbeing />} />}
+      {isOn(S, 'group') && user && <Route path="/group" element={<Group />} />}
       {isOn(S, 'body') && <Route path="/progress-photos" element={<ProgressPhotos />} />}
       {isOn(S, 'body') && <Route path="/measurements" element={<Measurements />} />}
       {/* The MCP connector's consent screen (api/oauth.js): an assistant sent the browser here. */}

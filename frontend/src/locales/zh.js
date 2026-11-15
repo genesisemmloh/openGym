@@ -3944,6 +3944,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "主项从入门到精英，按你的体重衡量。",
   "Body and health": "身体与健康",
   "Wellbeing": "身心状态",
+  "Group": "小组",
   "Change it anytime in Settings → Modules.": "随时可以在 设置 → 模块 中更改。",
   "Extras": "附加功能",
   "Film a set and watch it back right under the row.": "拍下一组，直接在这一行下面回看。",

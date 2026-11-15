@@ -3944,6 +3944,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "De Principiante a Elite nos teus exercícios principais, medido face ao teu peso corporal.",
   "Body and health": "Corpo e saúde",
   "Wellbeing": "Bem-estar",
+  "Group": "Grupo",
   "Change it anytime in Settings → Modules.": "Muda quando quiseres em Definições → Módulos.",
   "Extras": "Extras",
   "Film a set and watch it back right under the row.": "Filma uma série e revê-a logo por baixo da linha.",

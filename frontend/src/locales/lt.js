@@ -3933,6 +3933,7 @@ export default {
   "Beginner to Elite for your main lifts, measured against your body weight.": "Nuo pradedančiojo iki elito lygio pagrindiniams kėlimams, vertinama pagal kūno svorį.",
   "Body and health": "Kūnas ir sveikata",
   "Wellbeing": "Savijauta",
+  "Group": "Grupė",
   "Change it anytime in Settings → Modules.": "Pakeiskite bet kada skiltyje Nustatymai → Moduliai.",
   "Extras": "Papildomi moduliai",
   "Film a set and watch it back right under the row.": "Nufilmuokite seriją ir peržiūrėkite ją tiesiai po eilute.",

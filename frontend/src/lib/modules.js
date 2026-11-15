@@ -40,6 +40,8 @@ export const MODULES = [
     desc: 'Apple Health or Health Connect, heart rate and recovery tips.' },
   { id: 'wellbeing', group: 'body', icon: 'smile', tint: 'var(--green)', title: 'Wellbeing',
     desc: 'Food, mood, symptoms and habits, day by day, next to your training.' },
+  { id: 'group', group: 'extras', icon: 'trophy', tint: 'var(--yellow)', title: 'Group',
+    desc: 'A board of how often the people on this server train, for those who choose to share.' },
   { id: 'motivation', group: 'extras', icon: 'flame', tint: 'var(--orange)', title: 'Motivation',
     desc: 'Streaks, challenges, badges, recaps and your year in openGym.' },
   { id: 'coach', group: 'extras', icon: 'sparkles', tint: 'var(--green)', title: 'AI Coach',
