@@ -8,8 +8,8 @@ import Icon from './Icon.jsx'
 import CardHead from './CardHead.jsx'
 import '../views/Wellbeing.css'
 
-// Home's Wellbeing card (fork module): today at a glance (mood, calories, supplements, habits,
-// symptoms). A tap opens the Wellbeing screen, where the day is logged.
+// Home's Wellbeing card (fork module): today at a glance (mood, calories with the deficit so far,
+// protein, supplements, habits). A tap opens the Wellbeing screen, where the day is logged.
 export default function WellbeingCard({ S }) {
   const nav = useNavigate()
   const day = todayISO()
@@ -29,14 +29,13 @@ export default function WellbeingCard({ S }) {
       open={{ onClick: () => nav('/wellbeing') }} action={<Icon name="chevronRight" className="chev" />} />
     <div className="wbc">
       <div className="wbc-i" title={t('Mood')}><span className="wbc-v">{m ? MOOD_FACE[m.mood] : '–'}</span><span className="small dim">{m ? t(MOOD_LABEL[m.mood]) : t('Mood')}</span></div>
-      <div className="wbc-i"><span className="wbc-v">{tot.kcal.toLocaleString(dateLocale())}</span><span className="small dim">{goalText ? t('of {0} kcal', goalText) : 'kcal'}</span></div>
-      {tot.deficit != null && <div className="wbc-i"><span className={'wbc-v ' + (tot.deficit >= 0 ? 'wbc-def' : 'wbc-sur')}>{loc(Math.abs(tot.deficit))}</span>
-        <span className="small dim">{tot.deficit >= 0 ? t('kcal deficit so far') : t('kcal surplus')}</span></div>}
-      {(tot.protein != null || p) && <div className="wbc-i"><span className="wbc-v">{tot.protein ?? 0} g</span>
-        <span className="small dim">{p ? t('of {0} g protein', rangeOf(p)) : t('Protein')}</span></div>}
+      <div className="wbc-i"><span className="wbc-v">{tot.kcal.toLocaleString(dateLocale())}</span><span className="small dim">{goalText ? t('of {0} kcal', goalText) : 'kcal'}</span>
+        {tot.deficit != null && <span className={'small wbc-dl ' + (tot.deficit >= 0 ? 'wbc-def' : 'wbc-sur')}>
+          {tot.deficit >= 0 ? t('{0} kcal deficit', loc(tot.deficit)) : t('{0} kcal surplus', loc(-tot.deficit))}</span>}</div>
+      <div className="wbc-i"><span className="wbc-v">{tot.protein ?? 0} g</span>
+        <span className="small dim">{p ? t('of {0} g protein', rangeOf(p)) : t('Protein')}</span></div>
       {supps.length > 0 && <div className="wbc-i"><span className="wbc-v">{taken.length}/{supps.length}</span><span className="small dim">{t('Supplements')}</span></div>}
       {habits.length > 0 && <div className="wbc-i"><span className="wbc-v">{done.length}/{habits.length}</span><span className="small dim">{t('Habits')}</span></div>}
-      {sym > 0 && <div className="wbc-i"><span className="wbc-v wbc-sym">{sym}</span><span className="small dim">{t('Symptoms')}</span></div>}
     </div>
   </div>
 }

@@ -219,3 +219,4 @@
 .wb-goals .wb-favrow{justify-content:flex-start}
 .wbc-def{color:var(--green)}
 .wbc-sur{color:var(--orange)}
+.wbc-dl{font-weight:600;font-size:.72rem;line-height:1.2}
