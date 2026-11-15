@@ -309,4 +309,9 @@ export default {
   "{0} foods": "{0} Lebensmittel",
   "{0} g carbs": "{0} g Kohlenhydrate",
   "{0} g fat": "{0} g Fett",
+  "{0} L to go": "Noch {0} L",
+  "{0} g to go": "Noch {0} g",
+  "{0} of {1} L": "{0} von {1} L",
+  "{0} of {1} g": "{0} von {1} g",
+  "{0} of {1} kcal": "{0} von {1} kcal",
 }

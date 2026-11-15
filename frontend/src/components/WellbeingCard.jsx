@@ -24,15 +24,19 @@ function Tile({ v, l, fill, done, title }) {
   </div>
 }
 
-/** One nutrition line: name and note on the left, value and goal on the right, a bar under them. */
-function Bar({ icon, label, note, noteCls, v, goal, fill, state }) {
+/**
+ * One nutrition line: the name, and on the right what is left to go (or what was had, without a
+ * goal); a bar filled with what was had; under it, what was had against the goal, and a note.
+ */
+function Bar({ icon, label, v, sub, note, noteCls, fill, state }) {
   const pct = fill == null ? null : Math.max(0, Math.min(100, Math.round(fill * 100)))
   return <div className={'wbn-r' + (state ? ' ' + state : '')}>
     <div className="wbn-t">
-      <span className="wbn-l"><Icon name={icon} />{label}{note && <span className={'wbn-note ' + (noteCls || '')}>{note}</span>}</span>
-      <span className="wbn-v">{v}{goal && <span className="dim"> / {goal}</span>}{state === 'done' && <Icon name="check" className="wbn-ok" />}</span>
+      <span className="wbn-l"><Icon name={icon} />{label}</span>
+      <span className="wbn-v">{v}{state === 'done' && <Icon name="check" className="wbn-ok" />}</span>
     </div>
     {pct != null && <div className="wbn-bar"><span style={{ width: pct + '%' }} /></div>}
+    {(sub || note) && <div className="wbn-s"><span className="dim">{sub}</span>{note && <span className={'wbn-note ' + (noteCls || '')}>{note}</span>}</div>}
   </div>
 }
 
@@ -45,6 +49,8 @@ export default function WellbeingCard({ S }) {
   const lit = ml => (Math.round(ml / 10) / 100).toLocaleString(dateLocale(), { maximumFractionDigits: 2 })
   const rangeOf = (x, f = loc) => (x.min != null && x.max != null && x.min !== x.max ? `${f(x.min)}–${f(x.max)}` : f(x.max ?? x.min))
   const aim = x => (x ? x.min ?? x.max : null)
+  // What can still be eaten runs to the top of the range; what is still to reach, to its bottom.
+  const top = x => x.max ?? x.min
   const g = tot.goals
   const r = tot.target
   const supps = suppList(S), counts = suppCountsOn(S, day)
@@ -66,13 +72,19 @@ export default function WellbeingCard({ S }) {
       {habits.length > 0 && <Tile v={`${done.length}/${habits.length}`} l={t('Habits')} fill={done.length / habits.length} done={done.length === habits.length} />}
     </div>
     <div className="wbn" aria-label={t('Nutrition')}>
-      <Bar icon="flame" label={t('Calories')} v={`${loc(tot.kcal)} kcal`} goal={r ? rangeOf(r) : null}
+      <Bar icon="flame" label={t('Calories')}
+        v={!r ? `${loc(tot.kcal)} kcal` : tot.kcal > top(r) ? t('{0} kcal over', loc(tot.kcal - top(r))) : t('{0} kcal left', loc(top(r) - tot.kcal))}
+        sub={r ? t('{0} of {1} kcal', loc(tot.kcal), rangeOf(r)) : null}
         fill={r ? tot.kcal / aim(r) : null} state={kcalState}
         note={tot.deficit != null ? (tot.deficit >= 0 ? t('{0} kcal deficit', loc(tot.deficit)) : t('{0} kcal surplus', loc(-tot.deficit))) : null}
         noteCls={tot.deficit != null && tot.deficit < 0 ? 'sur' : 'def'} />
-      <Bar icon="medal" label={t('Protein')} v={`${protein} g`} goal={g?.protein ? rangeOf(g.protein) + ' g' : null}
+      <Bar icon="medal" label={t('Protein')}
+        v={!g?.protein ? `${protein} g` : protein >= aim(g.protein) ? `${protein} g` : t('{0} g to go', loc(aim(g.protein) - protein))}
+        sub={g?.protein ? t('{0} of {1} g', protein, rangeOf(g.protein)) : null}
         fill={g?.protein ? protein / aim(g.protein) : null} state={g?.protein && protein >= aim(g.protein) ? 'done' : ''} />
-      <Bar icon="drop" label={t('Water')} v={`${lit(tot.water)} L`} goal={g?.water ? rangeOf(g.water, lit) + ' L' : `${lit(wAim)} L`}
+      <Bar icon="drop" label={t('Water')}
+        v={tot.water >= wAim ? `${lit(tot.water)} L` : t('{0} L to go', lit(wAim - tot.water))}
+        sub={t('{0} of {1} L', lit(tot.water), g?.water ? rangeOf(g.water, lit) : lit(wAim))}
         fill={tot.water / wAim} state={tot.water >= wAim ? 'done' : ''} />
     </div>
   </div>

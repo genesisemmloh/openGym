@@ -254,3 +254,5 @@
 .wbn-r.done .wbn-bar span{background:var(--green)}
 .wbn-r.over .wbn-bar span{background:var(--orange)}
 .wbn-r.over .wbn-v{color:var(--orange)}
+.wbn-s{display:flex;justify-content:space-between;gap:8px;margin-top:4px;font-size:.74rem}
+.wbn-s .wbn-note{margin-inline-start:auto}
