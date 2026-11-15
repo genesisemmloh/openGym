@@ -163,3 +163,9 @@
 .wb-dist .m4{background:rgba(48,209,88,.6)}
 .wb-dist .m5{background:rgba(48,209,88,.95)}
 .wb-bline.mood span{background:var(--indigo)}
+
+/* Home's Wellbeing card (components/WellbeingCard.jsx). */
+.wbc{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.wbc-i{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;background:rgba(128,128,128,.12);text-align:center}
+.wbc-v{font-size:1.25rem;font-weight:700;line-height:1.2}
+.wbc-sym{color:var(--orange)}

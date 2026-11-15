@@ -67,7 +67,8 @@ const TRAINING = ['effort', 'plates', 'watch']
 export const PRESETS = [
   { id: 'training', title: 'Just training', desc: 'Log, plan, progress. Nothing else on the screen.', on: TRAINING },
   { id: 'body', title: 'Training and body', desc: 'Plus weigh-ins, measurements, photos and your health apps.', on: [...TRAINING, 'strength', 'body', 'health', 'wellbeing'] },
-  { id: 'all', title: 'Everything', desc: 'Streaks, the Coach, themes, the lot.', on: MODULE_IDS },
+  // Fork: everything but the gym check-in, which is only ever switched on by hand.
+  { id: 'all', title: 'Everything', desc: 'Streaks, the Coach, themes, the lot.', on: MODULE_IDS.filter(id => id !== 'checkin') },
 ]
 export const PRESET = Object.fromEntries(PRESETS.map(p => [p.id, p]))
 
@@ -87,7 +88,9 @@ export function isOn(S, id) {
   const v = isMap(S?.modules) ? S.modules[id] : undefined
   if (typeof v === 'boolean') return v
   // Before 1.4.4 the check-in had its own switch in Look & Home; it decides until Modules does.
-  if (id === 'checkin') return S?.checkIn !== false
+  // Fork: the gym check-in is off unless switched on in Modules; the old Look & Home switch
+  // (S.checkIn, true by default in every saved profile) no longer turns it on.
+  if (id === 'checkin') return false
   return true
 }
 

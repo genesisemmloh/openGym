@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t, getLang, baseLang, dateLocale } from '../lib/i18n.js'
@@ -29,9 +30,11 @@ const save = fn => store().update(fn)
 const fmt1 = v => (v == null ? '–' : Number(v).toLocaleString(dateLocale(), { maximumFractionDigits: 1 }))
 
 export default function Wellbeing() {
+  const nav = useNavigate()
   const [tab, setTab] = useState('day')
   return <>
-    <div className="hdr"><div><h1>{t('Wellbeing')}</h1><div className="sub">{t('How you eat, feel and live, next to your training.')}</div></div></div>
+    <div className="hdr"><button className="iconbtn" data-back="/home" onClick={() => nav('/home')} aria-label={t('Home')}><Icon name="chevronLeft" /></button>
+      <div style={{ flex: 1, marginInlineStart: 12 }}><h1>{t('Wellbeing')}</h1><div className="sub">{t('How you eat, feel and live, next to your training.')}</div></div></div>
     <Segmented className="wb-seg" value={tab} onChange={setTab}
       options={[{ value: 'day', label: t('Day') }, { value: 'detail', label: t('Detail') }]} />
     {tab === 'day' ? <DayView /> : <DetailView />}

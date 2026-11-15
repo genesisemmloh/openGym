@@ -1156,6 +1156,15 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           subtitle={t('Show the body weight card on Home.')}>
           <Switch checked={S.showWeightCard !== false} onChange={v => update(s => { s.showWeightCard = v })} />
         </Row>}
+        {/* Fork: the Wellbeing and Group cards can leave Home while their modules stay on. */}
+        {on('wellbeing') && <Row icon="smile" iconTint="var(--green)" title={t('Wellbeing')}
+          subtitle={t('Show today’s mood, calories, supplements and habits on Home.')}>
+          <Switch aria-label={t('Wellbeing')} checked={S.showWellbeingCard !== false} onChange={v => update(s => { s.showWellbeingCard = v })} />
+        </Row>}
+        {on('group') && <Row icon="trophy" iconTint="var(--yellow)" title={t('Group')}
+          subtitle={t('Show your group’s board for this week on Home.')}>
+          <Switch aria-label={t('Group')} checked={S.showGroupCard !== false} onChange={v => update(s => { s.showGroupCard = v })} />
+        </Row>}
         {/* A small card when a muscle is still recovering or has been left out a while
             (lib/recovery-hint.js). One at a time, and it can be put away for the day. */}
         {on('health') && <Row icon="figureStrength" iconTint="var(--green)" title={t('Recovery tips')}

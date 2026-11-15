@@ -37,6 +37,7 @@ import RecoveryHint from '../components/RecoveryHint.jsx'
 import { FastingLine } from '../components/SisterApps.jsx'
 import { ChallengesCard } from '../components/Challenges.jsx'
 import GroupCard from '../components/GroupCard.jsx'
+import WellbeingCard from '../components/WellbeingCard.jsx'
 import { isOn } from '../lib/modules.js'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
@@ -239,8 +240,11 @@ export default function Home() {
     {/* This month's three challenges and how far you are (lib/challenges.js). */}
     <ChallengesCard S={S} />
 
-    {/* The Group (fork): who on this server trains how often, for those who share (lib/group.js). */}
-    {on('group') && user && <GroupCard S={S} />}
+    {/* Wellbeing (fork): today's mood, calories, supplements, habits and symptoms (lib/wellbeing.js). */}
+    {on('wellbeing') && S.showWellbeingCard !== false && <WellbeingCard S={S} />}
+
+    {/* The Group (fork): your group's board this week (lib/group.js). */}
+    {on('group') && user && S.showGroupCard !== false && <GroupCard S={S} />}
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
         arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}

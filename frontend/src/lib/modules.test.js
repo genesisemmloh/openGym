@@ -12,12 +12,14 @@ describe('modules', () => {
     expect(new Set(MODULE_IDS).size).toBe(MODULE_IDS.length)
   })
 
-  it('a profile from before Modules has every module on', () => {
-    for (const id of MODULE_IDS) expect(isOn({}, id)).toBe(true)
+  it('a profile from before Modules has every module on but the gym check-in (fork: off by default)', () => {
+    for (const id of MODULE_IDS) expect(isOn({}, id)).toBe(id !== 'checkin')
+    expect(isOn({ checkIn: true }, 'checkin')).toBe(false)
+    expect(isOn({ modules: { checkin: true } }, 'checkin')).toBe(true)
     expect(isOn(null, 'body')).toBe(true)
     expect(isOn({ modules: 'junk' }, 'body')).toBe(true)
     expect(presetOf({})).toBe('all')
-    expect(onCount({})).toBe(MODULE_IDS.length)
+    expect(onCount({})).toBe(MODULE_IDS.length - 1)
   })
 
   it('reads an explicit choice, and an unknown id is on', () => {
@@ -26,9 +28,9 @@ describe('modules', () => {
     expect(isOn({ modules: { body: false } }, 'later-module')).toBe(true)
   })
 
-  it('the old check-in switch decides until Modules does', () => {
+  it('the check-in is on only when Modules says so (fork: the old switch no longer turns it on)', () => {
     expect(isOn({ checkIn: false }, 'checkin')).toBe(false)
-    expect(isOn({ checkIn: true }, 'checkin')).toBe(true)
+    expect(isOn({ checkIn: true }, 'checkin')).toBe(false)
     expect(isOn({ checkIn: false, modules: { checkin: true } }, 'checkin')).toBe(true)
     expect(isOn({ checkIn: true, modules: { checkin: false } }, 'checkin')).toBe(false)
   })
@@ -67,7 +69,7 @@ describe('modules', () => {
   })
 
   it('names what a change switches off', () => {
-    expect(turnedOff({}, presetModules('training')).sort()).toEqual(['body', 'checkin', 'coach', 'community', 'group', 'health', 'integrations', 'motivation', 'seasonal', 'strength', 'videos', 'wellbeing'])
+    expect(turnedOff({}, presetModules('training')).sort()).toEqual(['body', 'coach', 'community', 'group', 'health', 'integrations', 'motivation', 'seasonal', 'strength', 'videos', 'wellbeing'])
     expect(turnedOff({ modules: { body: false } }, { body: false, coach: false })).toEqual(['coach'])
   })
 })
