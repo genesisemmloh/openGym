@@ -220,3 +220,11 @@
 .wbc-def{color:var(--green)}
 .wbc-sur{color:var(--orange)}
 .wbc-dl{font-weight:600;font-size:.72rem;line-height:1.2}
+/* Home card tiles fill from the bottom as the day reaches its goal */
+.wbc-i{position:relative;overflow:hidden;isolation:isolate}
+.wbc-f{position:absolute;inset:auto 0 0 0;z-index:-1;background:rgba(163,230,53,.16);transition:height .4s ease}
+.wbc-i.done .wbc-f{background:rgba(48,209,88,.28)}
+.wbc-i.over .wbc-f{background:rgba(255,159,10,.28)}
+.wbc-i.done .wbc-v{color:var(--green)}
+.wbc-i.over .wbc-v{color:var(--orange)}
+.wbc-ok{position:absolute;top:5px;right:5px;width:12px;height:12px;color:var(--green)}
