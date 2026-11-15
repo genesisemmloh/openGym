@@ -168,14 +168,15 @@ export function withOwnSymptom(map, id, name, now = Date.now()) {
  */
 function listOf(map, defaults, withDose) {
   const entries = Object.entries(isMap(map) ? map : {})
-  if (!entries.length) return defaults.map((x, i) => ({ id: x.id, name: x.name, ...(withDose ? { dose: x.dose || '' } : {}), std: true, order: i }))
+  const extra = e => (withDose ? { dose: str(e?.dose, DOSE_MAX), times: timesOf(e?.times) } : {})
+  if (!entries.length) return defaults.map((x, i) => ({ id: x.id, name: x.name, ...extra(x), std: true, order: i }))
   return entries
-    .map(([id, e]) => ({ id, name: str(e?.name, NAME_MAX), ...(withDose ? { dose: str(e?.dose, DOSE_MAX) } : {}), std: e?.std === true, order: Number(e?.order) || 0, _ts: Number(e?._ts) || 0 }))
+    .map(([id, e]) => ({ id, name: str(e?.name, NAME_MAX), ...extra(e), std: e?.std === true, order: Number(e?.order) || 0, _ts: Number(e?._ts) || 0 }))
     .filter(x => x.name)
     .sort((a, b) => a.order - b.order || a._ts - b._ts)
     .map(({ _ts, ...x }) => x)
 }
-const defOf = (n, d, std, order, now) => ({ name: n, ...(d ? { dose: d } : {}), ...(std ? { std: true } : {}), order: Number(order) || 0, _ts: now })
+const defOf = (n, d, std, order, now, times = 1) => ({ name: n, ...(d ? { dose: d } : {}), ...(timesOf(times) > 1 ? { times: timesOf(times) } : {}), ...(std ? { std: true } : {}), order: Number(order) || 0, _ts: now })
 
 /**
  * `map` with the list as it shows now written out item by item: done before the first edit of a
@@ -184,9 +185,13 @@ const defOf = (n, d, std, order, now) => ({ name: n, ...(d ? { dose: d } : {}), 
 export function materialize(map, list, now = Date.now()) {
   if (isMap(map) && Object.keys(map).length) return map
   const out = {}
-  for (const x of list) out[x.id] = defOf(x.name, x.dose, x.std, x.order, now)
+  for (const x of list) out[x.id] = defOf(x.name, x.dose, x.std, x.order, now, x.times)
   return out
 }
+
+/** How many times a day something is taken: a whole number from 1 to TIMES_MAX, 1 when unset. */
+export const TIMES_MAX = 6
+export const timesOf = v => (Number.isInteger(+v) && +v >= 1 ? Math.min(TIMES_MAX, +v) : 1)
 
 /** The habits you track, in their order: [{ id, name, std, order }]. */
 export const habitList = S => listOf(S?.wbHabitDefs, HABIT_DEFAULTS, false)
@@ -214,9 +219,11 @@ export function withHabitToggled(map, iso, done, id, now = Date.now()) {
 
 /* ---------------- supplements ---------------- */
 
-// Vitamins and supplements, ticked per day like habits, each with an optional dose ("2000 IU").
-//   S.wbSuppDefs = { [suppId]: { name, dose?, order, _ts } }
-//   S.wbSupps    = { [iso]: { taken: [suppId, ..], _ts } }
+// Supplements and medicine, each with an optional dose ("2000 IU", "1 tablet") and how many times
+// a day it is taken. Every tap on a day adds one intake; the day is complete at `times`, and one
+// more tap starts it over (a mistap is one tap away from undone).
+//   S.wbSuppDefs = { [suppId]: { name, dose?, times?, order, _ts } }
+//   S.wbSupps    = { [iso]: { counts: { [suppId]: n }, _ts } }   (older days: { taken: [suppId] }, read as complete)
 
 /** The supplements list starts with these; SUPP_MORE are offered in the editor. English source strings. */
 export const SUPP_DEFAULTS = [
@@ -231,26 +238,42 @@ export const DOSE_MAX = 30
 /** Your supplements, in their order: [{ id, name, dose, std, order }]. */
 export const suppList = S => listOf(S?.wbSuppDefs, SUPP_DEFAULTS, true)
 
-/** S.wbSuppDefs with supplement `id` set (an empty name removes it). */
-export function withSuppDef(map, id, name, dose, order, now = Date.now(), std = false) {
+/** S.wbSuppDefs with supplement `id` set (an empty name removes it), taken `times` a day. */
+export function withSuppDef(map, id, name, dose, order, now = Date.now(), std = false, times = 1) {
   const n = str(name, NAME_MAX)
   const d = str(dose, DOSE_MAX)
   const base = materialize(map, listOf(map, SUPP_DEFAULTS, true), now)
-  return stamp(base, id, n ? defOf(n, d, std, order, now) : { _ts: now })
+  return stamp(base, id, n ? defOf(n, d, std, order, now, times) : { _ts: now })
 }
 
-/** The ids of the supplements taken on `iso` (only ones that still exist). */
-export function suppsTakenOn(S, iso) {
+/** How many intakes of each supplement `iso` has: { [suppId]: n }, only ones that still exist, capped at their times. */
+export function suppCountsOn(S, iso) {
   const e = mapOf(S, 'wbSupps')[iso]
-  const live = new Set(suppList(S).map(x => x.id))
-  return isMap(e) && Array.isArray(e.taken) ? [...new Set(e.taken.filter(id => live.has(id)))] : []
+  const out = {}
+  if (!isMap(e)) return out
+  for (const x of suppList(S)) {
+    const n = isMap(e.counts) && Number.isInteger(e.counts[x.id]) ? e.counts[x.id]
+      : Array.isArray(e.taken) && e.taken.includes(x.id) ? x.times : 0
+    if (n > 0) out[x.id] = Math.min(n, x.times)
+  }
+  return out
 }
 
-/** S.wbSupps with supplement `id` ticked or unticked on `iso`. `taken` is what the day had before. */
-export function withSuppToggled(map, iso, taken, id, now = Date.now()) {
-  const set = new Set(Array.isArray(taken) ? taken : [])
-  if (set.has(id)) set.delete(id); else set.add(id)
-  return stamp(map, iso, set.size ? { taken: [...set], _ts: now } : { _ts: now })
+/** The ids of the supplements taken in full on `iso`: every intake of the day. */
+export function suppsTakenOn(S, iso) {
+  const counts = suppCountsOn(S, iso)
+  return suppList(S).filter(x => (counts[x.id] || 0) >= x.times).map(x => x.id)
+}
+
+/** The next count a tap gives: one more intake, and from complete back to none. */
+export const nextIntake = (n, times) => ((n || 0) >= timesOf(times) ? 0 : (n || 0) + 1)
+
+/** S.wbSupps with one tap on supplement `id` on `iso`. `counts` is what the day had before (suppCountsOn). */
+export function withSuppTap(map, iso, counts, id, times, now = Date.now()) {
+  const next = { ...(isMap(counts) ? counts : {}) }
+  const n = nextIntake(next[id], times)
+  if (n) next[id] = n; else delete next[id]
+  return stamp(map, iso, Object.keys(next).length ? { counts: next, _ts: now } : { _ts: now })
 }
 
 /* ---------------- food ---------------- */

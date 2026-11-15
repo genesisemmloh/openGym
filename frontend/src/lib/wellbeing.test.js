@@ -3,7 +3,7 @@ import {
   readMood, withMood, moodOf, readSymptoms, withSymptoms, nextSeverity, symptomList, withOwnSymptom,
   habitList, withHabitDef, habitsDoneOn, withHabitToggled, readFood, withFood, foodsOn, dayTotals,
   kcalFor, recentFoods, kcalGoalOf, monthDays, shiftMonth, shiftDay,
-  suppList, withSuppDef, suppsTakenOn, withSuppToggled, HABIT_DEFAULTS, SUPP_DEFAULTS, withSymptomShown, hiddenSymptoms,
+  suppList, withSuppDef, suppsTakenOn, suppCountsOn, withSuppTap, nextIntake, timesOf, HABIT_DEFAULTS, SUPP_DEFAULTS, withSymptomShown, hiddenSymptoms,
   favFoods, isFavFood, withFav, myFoodsMatching,
   reasonList, hiddenReasons, withReasonShown, withOwnReason, periodRange, shiftPeriod,
 } from './wellbeing.js'
@@ -103,12 +103,31 @@ describe('supplements', () => {
     let defs = { s1: { name: 'Vitamin D', dose: '2000 IU', order: 0, _ts: 1 } }
     defs = withSuppDef(defs, 's2', 'Creatine', '', 1, 2)
     const S = { wbSuppDefs: defs, wbSupps: {} }
-    expect(suppList(S)).toEqual([{ id: 's1', name: 'Vitamin D', dose: '2000 IU', std: false, order: 0 }, { id: 's2', name: 'Creatine', dose: '', std: false, order: 1 }])
-    S.wbSupps = withSuppToggled(S.wbSupps, D, suppsTakenOn(S, D), 's2', 3)
+    expect(suppList(S)).toEqual([{ id: 's1', name: 'Vitamin D', dose: '2000 IU', times: 1, std: false, order: 0 }, { id: 's2', name: 'Creatine', dose: '', times: 1, std: false, order: 1 }])
+    S.wbSupps = withSuppTap(S.wbSupps, D, suppCountsOn(S, D), 's2', 1, 3)
     expect(suppsTakenOn(S, D)).toEqual(['s2'])
     S.wbSuppDefs = withSuppDef(S.wbSuppDefs, 's2', '', '', 0, 4)
     expect(suppsTakenOn(S, D)).toEqual([])
     expect(STAMPED_MAPS).toEqual(expect.arrayContaining(['wbSupps', 'wbSuppDefs']))
+  })
+
+  it('counts intakes up to the times a day, completes, and a further tap starts over', () => {
+    const S = { wbSuppDefs: withSuppDef({ x: { name: 'X', order: 9, _ts: 0 } }, 'tooth', 'Pain pill', '1 tablet', 0, 1, false, 3), wbSupps: {} }
+    expect(suppList(S).find(x => x.id === 'tooth')).toMatchObject({ dose: '1 tablet', times: 3 })
+    const tap = ts => { S.wbSupps = withSuppTap(S.wbSupps, D, suppCountsOn(S, D), 'tooth', 3, ts) }
+    tap(2); expect(suppCountsOn(S, D)).toEqual({ tooth: 1 }); expect(suppsTakenOn(S, D)).toEqual([])
+    tap(3); expect(suppCountsOn(S, D)).toEqual({ tooth: 2 })
+    tap(4); expect(suppsTakenOn(S, D)).toEqual(['tooth'])
+    tap(5); expect(suppCountsOn(S, D)).toEqual({}); expect(S.wbSupps[D]).toEqual({ _ts: 5 })
+    expect([0, 1, 2, 3].map(n => nextIntake(n, 3))).toEqual([1, 2, 3, 0])
+    expect(timesOf(99)).toBe(6)
+    expect(timesOf('x')).toBe(1)
+  })
+
+  it('reads a day logged before intakes as taken in full', () => {
+    const S = { wbSuppDefs: { p: { name: 'Protein', times: 2, order: 0, _ts: 1 } }, wbSupps: { [D]: { taken: ['p'], _ts: 1 } } }
+    expect(suppCountsOn(S, D)).toEqual({ p: 2 })
+    expect(suppsTakenOn(S, D)).toEqual(['p'])
   })
 })
 

@@ -169,3 +169,12 @@
 .wbc-i{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;background:rgba(128,128,128,.12);text-align:center}
 .wbc-v{font-size:1.25rem;font-weight:700;line-height:1.2}
 .wbc-sym{color:var(--orange)}
+
+/* Supplements and medicine: a chip fills by intake (--fill), and how many times a day is picked by chip. */
+.wb-card .chip.wb-intake:not(.on){background-image:linear-gradient(90deg,var(--acc-soft) var(--fill,0%),transparent var(--fill,0%))}
+.wb-times{font-size:.72rem;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(128,128,128,.22);margin-inline-start:2px}
+.chip.on .wb-times{background:rgba(0,0,0,.18)}
+.wb-times-pick{display:flex;gap:6px;flex-wrap:wrap}
+.wb-times-pick .chip{min-width:44px;justify-content:center}
+.wb-form label:has(.wb-times-pick){flex-direction:column;align-items:flex-start}
+.wb-hrow-n{display:flex;flex-direction:column;gap:2px;cursor:pointer}

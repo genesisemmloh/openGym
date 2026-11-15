@@ -11,7 +11,7 @@ import {
   MOODS, MOOD_LABEL, MOOD_FACE, REASON_LABEL, reasonList, hiddenReasons, withReasonShown, withOwnReason, SEVERITY_LABEL, MEALS, MEAL_LABEL, NOTE_MAX, NAME_MAX,
   moodOf, withMood, symptomList, symptomsOf, withSymptoms, nextSeverity, withOwnSymptom,
   habitList, withHabitDef, habitsDoneOn, withHabitToggled, HABIT_DEFAULTS, SYMPTOM_LABEL, hiddenSymptoms, withSymptomShown,
-  SUPP_IDEAS, DOSE_MAX, suppList, withSuppDef, suppsTakenOn, withSuppToggled,
+  SUPP_IDEAS, DOSE_MAX, TIMES_MAX, suppList, withSuppDef, suppCountsOn, withSuppTap,
   foodsOn, withFood, dayTotals, kcalFor, recentFoods, kcalGoalOf, shiftDay, periodRange, shiftPeriod,
   favFoods, isFavFood, withFav, myFoodsMatching,
 } from '../lib/wellbeing.js'
@@ -139,10 +139,31 @@ function TickCard({ icon, title, hint, list, done, onToggle, kind }) {
   </section>
 }
 
+/** Supplements and medicine: each tap is one intake, the chip fills a share per intake, full at its times a day. */
 function SupplementsCard({ S, day }) {
-  return <TickCard icon="plusCircle" title={t('Supplements')} kind="supps" list={suppList(S)} done={suppsTakenOn(S, day)}
-    hint={t('Tap what you took today.')}
-    onToggle={id => save(s => { s.wbSupps = withSuppToggled(s.wbSupps, day, suppsTakenOn(s, day), id) })} />
+  const list = suppList(S)
+  const counts = suppCountsOn(S, day)
+  const full = list.filter(x => (counts[x.id] || 0) >= x.times).length
+  const tap = x => save(s => { s.wbSupps = withSuppTap(s.wbSupps, day, suppCountsOn(s, day), x.id, x.times) })
+  return <section className="card wb-card">
+    <h2 className="wb-h"><Icon name="plusCircle" />{t('Supplements and medicine')}{list.length > 0 && <span className="wb-count">{full}/{list.length}</span>}</h2>
+    <div className="small dim wb-sub">{t('Tap once per intake. Something you take three times a day fills a third with each tap.')}</div>
+    <div className="chips">
+      {list.map(x => {
+        const n = counts[x.id] || 0
+        const done = n >= x.times
+        const pct = Math.round(n / x.times * 100)
+        return <button key={x.id} type="button" className={'chip nocap wb-tick wb-intake' + (done ? ' on' : '')} aria-pressed={done}
+          style={!done && n > 0 ? { '--fill': pct + '%' } : undefined}
+          aria-label={`${shown(x)}, ${t('{0} of {1} today', n, x.times)}`} onClick={() => tap(x)}>
+          {done && <Icon name="check" />}{shown(x)}
+          {x.dose ? <span className="wb-dose-l">{x.dose}</span> : null}
+          {x.times > 1 && <span className="wb-times">{n}/{x.times}</span>}
+        </button>
+      })}
+      <EditListChip onClick={() => listSheet('supps')} />
+    </div>
+  </section>
 }
 
 function HabitsCard({ S, day }) {
@@ -216,8 +237,80 @@ function goalSheet() {
   })
 }
 
-// One editor for the three lists: take items off, put suggested ones back, add your own.
-function listSheet(kind) { ui().openSheet(close => <ListSheet kind={kind} close={close} />) }
+// One editor for the lists: take items off, put suggested ones back, add your own. Supplements and
+// medicine have their own, since each one carries a dose and how many times a day it is taken.
+function listSheet(kind) {
+  if (kind === 'supps') { ui().openSheet(close => <SuppListSheet close={close} />); return }
+  ui().openSheet(close => <ListSheet kind={kind} close={close} />)
+}
+
+const timesLabel = n => (n > 1 ? t('{0} times a day', n) : t('once a day'))
+
+function SuppListSheet({ close }) {
+  const S = useStore(s => s.S)
+  const list = suppList(S)
+  const ideas = SUPP_IDEAS.filter(x => !list.some(y => y.id === x.id))
+  const remove = x => save(s => { s.wbSuppDefs = withSuppDef(s.wbSuppDefs, x.id, '', '', 0) })
+  const addIdea = x => save(s => { s.wbSuppDefs = withSuppDef(s.wbSuppDefs, x.id, x.name, x.dose, suppList(s).length, Date.now(), true, x.times || 1) })
+  const edit = x => ui().openSheet(c => <SuppEditSheet item={x} close={c} />)
+  return <>
+    <h3>{t('Your supplements and medicine')}</h3>
+    <div className="small dim" style={{ marginBottom: 10 }}>{t('Tap one to change its dose or how many times a day you take it. Days you already logged stay as they are.')}</div>
+    <div className="list">
+      {list.map(x => <div key={x.id} className="item wb-hrow">
+        <span className="wb-hrow-n" role="button" tabIndex={0} onClick={() => edit(x)} onKeyDown={e => { if (e.key === 'Enter') edit(x) }}>
+          <span>{shown(x)}</span>
+          <span className="small dim">{[x.dose, timesLabel(x.times)].filter(Boolean).join(' · ')}</span>
+        </span>
+        <button className="iconbtn" onClick={() => edit(x)} aria-label={t('Edit {0}', shown(x))}><Icon name="pencil" /></button>
+        <button className="iconbtn" onClick={() => remove(x)} aria-label={t('Remove {0}', shown(x))}><Icon name="trash" /></button>
+      </div>)}
+      {!list.length && <span className="small dim">{t('The list is empty.')}</span>}
+    </div>
+    <Button variant="tinted" icon="plus" className="wb-more" onClick={() => edit(null)}>{t('Add supplement or medicine')}</Button>
+    {ideas.length > 0 && <>
+      <div className="small dim wb-sub">{t('Suggestions')}</div>
+      <div className="chips wb-edit-list">
+        {ideas.map(x => <button key={x.id} type="button" className="chip nocap add" onClick={() => addIdea(x)}><Icon name="plus" />{t(x.name)}</button>)}
+      </div>
+    </>}
+    <div style={{ height: 14 }} />
+    <Button variant="primary" onClick={close}>{t('Done')}</Button>
+  </>
+}
+
+/** Add or change one supplement or medicine: its name, dose, and how many times a day. */
+function SuppEditSheet({ item, close }) {
+  const [name, setName] = useState(item ? shown(item) : '')
+  const [dose, setDose] = useState(item?.dose || '')
+  const [times, setTimes] = useState(item?.times || 1)
+  const ok = name.trim().length > 0
+  const saveIt = () => {
+    if (!ok) return
+    save(s => {
+      // A suggested item renamed by hand stops being translated: the name is yours now.
+      const std = !!item?.std && name.trim() === shown(item)
+      s.wbSuppDefs = withSuppDef(s.wbSuppDefs, item?.id || 's-' + uid(), std ? item.name : name.trim(), dose.trim(), item ? item.order : suppList(s).length, Date.now(), std, times)
+    })
+    close()
+  }
+  return <>
+    <h3>{item ? t('Edit {0}', shown(item)) : t('Add supplement or medicine')}</h3>
+    <div className="wb-form">
+      <label><span>{t('Name')}</span><TextField autoFocus={!item} value={name} maxLength={NAME_MAX} placeholder={t('Like “Ibuprofen” or “Iron”')} onChange={e => setName(e.target.value)} /></label>
+      <label><span>{t('Dose')}</span><TextField value={dose} maxLength={DOSE_MAX} placeholder={t('Like “1 tablet”, “30 g” or “2000 IU”')} onChange={e => setDose(e.target.value)} /></label>
+      <label><span>{t('Times a day')}</span>
+        <span className="wb-times-pick" role="group" aria-label={t('Times a day')}>
+          {Array.from({ length: TIMES_MAX }, (_, i) => i + 1).map(n => <button key={n} type="button" className={'chip nocap' + (times === n ? ' on' : '')} aria-pressed={times === n} onClick={() => setTimes(n)}>{n}×</button>)}
+        </span></label>
+    </div>
+    <div className="small dim wb-sub">{times > 1 ? t('Each tap counts one intake; the chip is complete after {0}.', times) : t('One tap marks it as taken.')}</div>
+    <div style={{ height: 10 }} />
+    <Button variant="primary" disabled={!ok} onClick={saveIt}>{t('Save')}</Button>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
+  </>
+}
 function ListSheet({ kind, close }) {
   const S = useStore(s => s.S)
   const [name, setName] = useState('')
@@ -552,7 +645,7 @@ function DetailView() {
 
     {sum.reasons.length > 0 && <Bars icon="smile" title={t('What your mood had to do with')} items={sum.reasons.slice(0, 6).map(x => ({ id: x.id, label: reasonLabel(x.id), n: x.days }))} total={sum.moodDays} cls="mood" />}
     {sum.symptoms.length > 0 && <Bars icon="warning" title={t('Symptoms')} items={sum.symptoms.map(x => ({ id: x.id, label: symLabel(x.id), n: x.days, extra: x.severe ? t('{0} severe', x.severe) : '' }))} total={sum.days} />}
-    {sum.supps.length > 0 && <Bars icon="plusCircle" title={t('Supplements')} items={sum.supps.map(x => ({ id: x.id, label: named(x), n: x.days }))} total={sum.days} cls="sup" pct={pct} />}
+    {sum.supps.length > 0 && <Bars icon="plusCircle" title={t('Supplements and medicine')} items={sum.supps.map(x => ({ id: x.id, label: named(x), n: x.days }))} total={sum.days} cls="sup" pct={pct} />}
     {sum.habits.length > 0 && <Bars icon="checkCircle" title={t('Habits')} items={sum.habits.map(x => ({ id: x.id, label: named(x), n: x.days }))} total={sum.days} cls="ok" pct={pct} />}
 
     <section className="card wb-card">
