@@ -238,3 +238,19 @@
 .wb-water-btns{justify-content:center;align-items:center}
 .wb-water-btns .btn:last-child{flex:none}
 .wb-water-btns .btn,.wb-water-btns .btn.wb-compact{margin:0;min-height:38px;height:38px;padding:8px 16px}
+/* Home card: nutrition as three bars under the tiles */
+.wbn{display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;border-radius:12px;background:rgba(128,128,128,.12)}
+.wbn-t{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:.88rem}
+.wbn-l{display:inline-flex;align-items:center;gap:6px;font-weight:600;min-width:0;flex-wrap:wrap}
+.wbn-l svg{width:15px;height:15px;color:var(--label-2)}
+.wbn-note{font-size:.74rem;font-weight:600}
+.wbn-note.def{color:var(--green)}
+.wbn-note.sur{color:var(--orange)}
+.wbn-v{font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.wbn-v .dim{font-weight:500}
+.wbn-ok{width:13px;height:13px;color:var(--green)}
+.wbn-bar{height:6px;border-radius:99px;margin-top:5px;overflow:hidden;background:rgba(128,128,128,.2)}
+.wbn-bar span{display:block;height:100%;border-radius:inherit;background:var(--acc);transition:width .4s ease}
+.wbn-r.done .wbn-bar span{background:var(--green)}
+.wbn-r.over .wbn-bar span{background:var(--orange)}
+.wbn-r.over .wbn-v{color:var(--orange)}
