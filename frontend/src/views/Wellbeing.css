@@ -228,3 +228,13 @@
 .wbc-i.done .wbc-v{color:var(--green)}
 .wbc-i.over .wbc-v{color:var(--orange)}
 .wbc-ok{position:absolute;top:5px;right:5px;width:12px;height:12px;color:var(--green)}
+.wb-scan .ico,.wb-scan svg{width:22px;height:22px}
+.wb-repeat{flex-wrap:wrap}
+.wb-total-m{text-align:center;margin:-8px 0 14px}
+/* The goals pill in the Food and Water headers, and compact add buttons */
+.wb-goalbtn{min-height:34px;height:34px;padding:0 12px;gap:6px;font-size:.85rem;font-weight:600;color:var(--acc-ink);background:rgba(163,230,53,.14)}
+.wb-goalbtn svg{width:16px;height:16px}
+.wb-add.btn.wb-compact,.btn.wb-compact{width:auto;min-height:38px;padding:8px 18px;font-size:.92rem;margin-inline:auto;display:flex}
+.wb-water-btns{justify-content:center;align-items:center}
+.wb-water-btns .btn:last-child{flex:none}
+.wb-water-btns .btn,.wb-water-btns .btn.wb-compact{margin:0;min-height:38px;height:38px;padding:8px 16px}

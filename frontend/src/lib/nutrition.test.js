@@ -4,7 +4,7 @@ import {
   dayNutrition, periodNutrition, weightKg, proteinFromKg, maintEstimate, waterAim,
 } from './nutrition.js'
 import {
-  withFood, withHabitDef, habitsDoneOn, parseDose, withSuppDef, suppList, doseText, withSuppTap, suppNutritionOn, dayTotals,
+  withFood, foodsOn, withFoodsCopied, withHabitDef, habitsDoneOn, parseDose, withSuppDef, suppList, doseText, withSuppTap, suppNutritionOn, dayTotals,
 } from './wellbeing.js'
 
 const D1 = '2026-11-09', D2 = '2026-11-10', D3 = '2026-11-11' // a Monday, Tuesday, Wednesday
@@ -139,6 +139,23 @@ describe('supplements in the day', () => {
     expect(suppList(S)[0]).toMatchObject({ kind: 'supp', amount: 30, unit: 'g', kcal: 120, protein: 24 })
     const mine = { wbSuppDefs: { protein: { name: 'Protein powder', kind: 'supp', amount: 25, unit: 'g', kcal: 100, std: true, order: 0, _ts: 1 } } }
     expect(suppList(mine)[0]).toMatchObject({ amount: 25, kcal: 100, protein: null })
+  })
+})
+
+describe('copying food', () => {
+  it('logs a meal or a day again on another day, as new entries', () => {
+    let m = withFood({}, 'a', { d: D1, name: 'Oats', kcal: 190, grams: 50, kcal100: 379, protein: 6.5, carbs: 33, fat: 3.5, meal: 'breakfast' }, 1)
+    m = withFood(m, 'b', { d: D1, name: 'Rice', kcal: 230, meal: 'lunch' }, 2)
+    const S = { wbFood: m }
+    const breakfast = foodsOn(S, D1).filter(f => f.meal === 'breakfast')
+    let n = 0
+    const copied = withFoodsCopied(m, breakfast, D2, { now: 10, newId: () => 'c' + n++ })
+    expect(foodsOn({ wbFood: copied }, D2)).toMatchObject([{ id: 'c0', name: 'Oats', kcal: 190, grams: 50, carbs: 33, fat: 3.5, meal: 'breakfast' }])
+    expect(foodsOn({ wbFood: copied }, D1)).toHaveLength(2)
+    const day = withFoodsCopied(m, foodsOn(S, D1), D3, { now: 20, newId: () => 'd' + n++ })
+    expect(dayTotals({ wbFood: day }, D3)).toMatchObject({ kcal: 420, carbs: 33, fat: 4, foods: 2 })
+    const asSnack = withFoodsCopied(m, breakfast, D2, { now: 30, meal: 'snack', newId: () => 'e' })
+    expect(foodsOn({ wbFood: asSnack }, D2)[0].meal).toBe('snack')
   })
 })
 

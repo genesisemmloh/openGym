@@ -2638,6 +2638,14 @@ const routes = {
     const { status, body } = await foodSearch.search(s.user.id, u.searchParams.get('q'), u.searchParams.get('lang'));
     json(res, status, body);
   },
+  // One product by its barcode, for the food sheet's scanner.
+  'GET /api/food/code': async (req, res) => {
+    const s = sessionOf(req);
+    if (!s) return json(res, 401, { error: 'not signed in' });
+    const u = new URL(req.url, 'http://local');
+    const { status, body } = await foodSearch.byCode(s.user.id, u.searchParams.get('c'));
+    json(res, status, body);
+  },
 
   // The Group (fork): the board of people who share how often they train (group.js). Counts only;
   // someone who does not share gets how many do and nothing else.

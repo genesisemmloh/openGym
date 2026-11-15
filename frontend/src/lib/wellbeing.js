@@ -8,7 +8,7 @@
 // something keep both, and the same entry keeps the later edit. A removal is a stamped empty entry
 // (`{ _ts }`), never a deleted key, or the other device's copy would bring it back.
 //
-//   S.wbFood     = { [id]:   { d, name, kcal, grams?, kcal100?, protein?, meal, src?, _ts } }  one per food eaten
+//   S.wbFood     = { [id]:   { d, name, kcal, grams?, kcal100?, protein?, carbs?, fat?, meal, src?, code?, _ts } }  one per food eaten
 //   S.wbMood     = { [iso]:  { mood: 1..5, reasons: [..], note?, _ts } }                       one per day
 //   S.wbSymptoms = { [iso]:  { s: { [symptomId]: 1..3 }, note?, _ts } }                        one per day
 //   S.wbHabits   = { [iso]:  { done: [habitId, ..], _ts } }                                    one per day
@@ -353,6 +353,8 @@ export function readFood(e) {
   const grams = num(e.grams, 0, 5000); if (grams) out.grams = grams
   const k100 = num(e.kcal100, 0, 1000); if (k100 != null) out.kcal100 = k100
   const protein = num(e.protein, 0, 1000); if (protein != null) out.protein = protein
+  const carbs = num(e.carbs, 0, 1000); if (carbs != null) out.carbs = carbs
+  const fat = num(e.fat, 0, 1000); if (fat != null) out.fat = fat
   if (e.src === 'off' || e.src === 'manual' || e.src === 'basic') out.src = e.src
   if (typeof e.code === 'string' && /^\d{4,20}$/.test(e.code)) out.code = e.code
   return out
@@ -386,7 +388,24 @@ export function dayTotals(S, iso) {
   const kcal = foods.reduce((a, f) => a + f.kcal, 0) + sup.kcal
   const withP = foods.filter(f => f.protein != null)
   const protein = withP.length || sup.protein ? Math.round(withP.reduce((a, f) => a + f.protein, 0) + sup.protein) : null
-  return { kcal, protein, count: foods.length + sup.items, foods: foods.length, suppKcal: sup.kcal, suppProtein: sup.protein }
+  // Carbohydrates and fat, like protein: null until something logged carries them.
+  const sumOf = k => { const xs = foods.filter(f => f[k] != null); return xs.length ? Math.round(xs.reduce((a, f) => a + f[k], 0)) : null }
+  return { kcal, protein, carbs: sumOf('carbs'), fat: sumOf('fat'), count: foods.length + sup.items, foods: foods.length, suppKcal: sup.kcal, suppProtein: sup.protein }
+}
+
+/**
+ * S.wbFood with `foods` (from foodsOn) logged again on `toDay`, each as a new entry in the same
+ * meal, or in `meal` when one is given. `newId` makes the ids (uid in the app).
+ */
+export function withFoodsCopied(map, foods, toDay, { meal = null, now = Date.now(), newId } = {}) {
+  let out = isMap(map) ? map : {}
+  let i = 0
+  for (const f of Array.isArray(foods) ? foods : []) {
+    const { id, _ts, ...food } = f
+    out = withFood(out, newId ? newId() : `f-copy-${now}-${i}`, { ...food, d: toDay, meal: meal || food.meal }, now + i)
+    i++
+  }
+  return out
 }
 
 /** kcal from a per-100 g value and grams, rounded. */
@@ -412,7 +431,7 @@ export function recentFoods(S, limit = 12) {
 
 /* ---------------- favourite foods ---------------- */
 
-// Foods you keep at hand: S.wbFoodFavs = { [favId]: { name, kcal100?, protein100?, grams?, kcal?, protein?, src?, _ts } }.
+// Foods you keep at hand: S.wbFoodFavs = { [favId]: { name, kcal100?, protein100?, carbs100?, fat100?, grams?, kcal?, protein?, carbs?, fat?, src?, _ts } }.
 // A food is either per 100 g (kcal100, with the grams you usually eat) or a fixed portion (kcal).
 // The id comes from the name, so the same food starred on two devices is one favourite.
 
@@ -427,8 +446,10 @@ export function readFav(e) {
   if (!name || (kcal100 == null && kcal == null)) return null
   const out = { name }
   if (kcal100 != null) out.kcal100 = kcal100; else out.kcal = Math.round(kcal)
-  const p100 = num(e.protein100, 0, 100); if (p100 != null) out.protein100 = p100
-  const p = num(e.protein, 0, 1000); if (p != null) out.protein = p
+  for (const k of ['protein', 'carbs', 'fat']) {
+    const per100 = num(e[k + '100'], 0, 100); if (per100 != null) out[k + '100'] = per100
+    const v = num(e[k], 0, 1000); if (v != null) out[k] = v
+  }
   const grams = num(e.grams, 0, 5000); if (grams) out.grams = grams
   if (['off', 'manual', 'basic'].includes(e.src)) out.src = e.src
   return out

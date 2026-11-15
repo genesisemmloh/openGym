@@ -40,7 +40,7 @@ export function wellbeingCSV(S, range = {}, tr = s => s) {
   const supps = suppList(S)
   const habits = habitList(S)
   const trained = trainedDays(S)
-  const header = ['date', 'trained', 'mood', 'mood_label', 'mood_reasons', 'mood_note', 'kcal', 'protein_g', 'foods',
+  const header = ['date', 'trained', 'mood', 'mood_label', 'mood_reasons', 'mood_note', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'foods',
     'kcal_target', 'maintenance', 'deficit_kcal', 'water_ml', 'symptoms',
     ...supps.map(x => 'supplement: ' + named(x) + (doseText(x, tr) ? ` (${doseText(x, tr)})` : '') + (x.times > 1 ? ` x${x.times}` : '')),
     ...habits.map(h => 'habit: ' + named(h))]
@@ -55,7 +55,7 @@ export function wellbeingCSV(S, range = {}, tr = s => s) {
       d, trained.has(d) ? 1 : 0,
       m ? m.mood : '', m ? tr(MOOD_LABEL[m.mood]) : '',
       m ? m.reasons.map(r => reasons.get(r) || r).join('; ') : '', m?.note || '',
-      tot.count ? tot.kcal : '', num(tot.protein), tot.foods || '',
+      tot.count ? tot.kcal : '', num(tot.protein), num(tot.carbs), num(tot.fat), tot.foods || '',
       r ? (r.min != null && r.max != null && r.min !== r.max ? `${r.min}-${r.max}` : String(r.max ?? r.min)) : '',
       tot.goals?.maint ?? '', tot.deficit ?? '', tot.water || '',
       Object.entries(sym).map(([id, v]) => `${symptoms.get(id) || id}: ${tr(SEVERITY_LABEL[v])}`).join('; '),
@@ -68,10 +68,10 @@ export function wellbeingCSV(S, range = {}, tr = s => s) {
 
 /** One row per food eaten inside the range. */
 export function foodsCSV(S, range = {}, tr = s => s) {
-  const header = ['date', 'meal', 'food', 'grams', 'kcal', 'kcal_per_100g', 'protein_g']
+  const header = ['date', 'meal', 'food', 'grams', 'kcal', 'kcal_per_100g', 'protein_g', 'carbs_g', 'fat_g']
   const rows = []
   for (const d of wellbeingDays(S, range)) for (const f of foodsOn(S, d)) {
-    rows.push([d, tr(MEAL_LABEL[f.meal]), f.name, num(f.grams), f.kcal, num(f.kcal100), num(f.protein)])
+    rows.push([d, tr(MEAL_LABEL[f.meal]), f.name, num(f.grams), f.kcal, num(f.kcal100), num(f.protein), num(f.carbs), num(f.fat)])
   }
   return csvText(header, rows)
 }

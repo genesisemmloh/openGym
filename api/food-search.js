@@ -6,6 +6,8 @@
 // the account. Answers are cached for an hour per (language, words).
 
 const ENDPOINT = 'https://search.openfoodfacts.org/search';
+// One product by its barcode (EAN-13, EAN-8, UPC-A): the scanner of the food sheet.
+const PRODUCT = 'https://world.openfoodfacts.org/api/v2/product/';
 const FIELDS = 'code,product_name,product_name_es,product_name_de,product_name_en,generic_name,brands,nutriments,serving_quantity';
 const TTL_MS = 60 * 60 * 1000;
 const CACHE_MAX = 500;
@@ -23,7 +25,7 @@ export const cleanLang = l => (/^[a-z]{2}$/.test(String(l || '')) ? l : 'en');
 export function slimHit(h) {
   if (!h || typeof h !== 'object') return null;
   const n = h.nutriments && typeof h.nutriments === 'object' ? h.nutriments : {};
-  const pick = ['energy-kcal_100g', 'energy_100g', 'energy-kj_100g', 'proteins_100g'];
+  const pick = ['energy-kcal_100g', 'energy_100g', 'energy-kj_100g', 'proteins_100g', 'carbohydrates_100g', 'fat_100g'];
   const nutriments = Object.fromEntries(pick.filter(k => Number.isFinite(+n[k])).map(k => [k, +n[k]]));
   const out = { nutriments };
   for (const k of ['code', 'product_name', 'product_name_es', 'product_name_de', 'product_name_en', 'generic_name']) {
@@ -74,5 +76,40 @@ export function createFoodSearch({ fetchFn = globalThis.fetch, now = () => Date.
       return { status: 502, body: { error: 'food search unavailable' } };
     }
   }
-  return { search };
+  /**
+   * { status, body }: 200 with { product } (null when Open Food Facts does not know the code), 400 for
+   * something that is not a barcode, 429 when one user asks too often, 502 when the service fails.
+   * Only the digits of the code go out.
+   */
+  async function byCode(uid, code) {
+    const c = cleanCode(code);
+    if (!c) return { status: 400, body: { error: 'barcode required' } };
+    const key = 'code:' + c;
+    const hit = cache.get(key);
+    if (hit && now() - hit.at < TTL_MS) return { status: 200, body: { product: hit.product } };
+    if (!allowed(uid)) return { status: 429, body: { error: 'too many searches, try again in a minute' } };
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+      const res = await fetchFn(`${PRODUCT}${c}?fields=${FIELDS}`, { headers: { Accept: 'application/json', 'User-Agent': 'openGym-selfhosted/1.0' }, signal: ctl.signal });
+      clearTimeout(timer);
+      // An unknown code is a 404 with { status: 0 }: an answer, not a failure.
+      if (res.status === 404) { cache.set(key, { at: now(), product: null }); return { status: 200, body: { product: null } }; }
+      if (!res.ok) return { status: 502, body: { error: 'food search unavailable' } };
+      const json = await res.json();
+      const product = json && json.status === 1 && json.product ? slimHit({ ...json.product, code: json.product.code || c }) : null;
+      cache.set(key, { at: now(), product });
+      if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+      return { status: 200, body: { product } };
+    } catch {
+      return { status: 502, body: { error: 'food search unavailable' } };
+    }
+  }
+  return { search, byCode };
+}
+
+/** A barcode as digits only (8 to 14 of them), or null. */
+export function cleanCode(code) {
+  const s = String(code || '').replace(/\s+/g, '');
+  return /^\d{8,14}$/.test(s) ? s : null;
 }

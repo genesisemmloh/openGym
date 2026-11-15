@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createFoodSearch, cleanQuery, slimHit } from '../food-search.js';
+import { createFoodSearch, cleanQuery, cleanCode, slimHit } from '../food-search.js';
 
 const answer = hits => async () => ({ ok: true, json: async () => ({ hits }) });
 
@@ -29,4 +29,24 @@ test('food search answers 502 when the service fails', async () => {
   assert.equal((await fs.search('u', 'oats', 'en')).status, 502);
   const fs2 = createFoodSearch({ fetchFn: async () => { throw new Error('down'); } });
   assert.equal((await fs2.search('u', 'oats', 'en')).status, 502);
+});
+
+test('food lookup by barcode: digits only, unknown codes are null, macros kept', async () => {
+  assert.equal(cleanCode('abc'), null);
+  assert.equal(cleanCode('1234'), null);
+  assert.equal(cleanCode(' 4006381333931 '), '4006381333931');
+  const asked = [];
+  const fs = createFoodSearch({ fetchFn: async url => {
+    asked.push(url);
+    if (url.includes('0000000000000')) return { ok: false, status: 404, json: async () => ({ status: 0 }) };
+    return { ok: true, status: 200, json: async () => ({ status: 1, product: { product_name: 'Skyr', nutriments: { 'energy-kcal_100g': 63, proteins_100g: 11, carbohydrates_100g: 4, fat_100g: 0.2 } } }) };
+  } });
+  const a = await fs.byCode('u', '4006381333931');
+  assert.equal(a.status, 200);
+  assert.deepEqual(a.body.product, { nutriments: { 'energy-kcal_100g': 63, proteins_100g: 11, carbohydrates_100g: 4, fat_100g: 0.2 }, code: '4006381333931', product_name: 'Skyr' });
+  assert.match(asked[0], /\/api\/v2\/product\/4006381333931\?fields=/);
+  assert.deepEqual((await fs.byCode('u', '0000000000000')).body, { product: null });
+  assert.equal((await fs.byCode('u', 'x1')).status, 400);
+  await fs.byCode('u', '4006381333931');
+  assert.equal(asked.length, 2); // the second ask for the same code came from the cache
 });

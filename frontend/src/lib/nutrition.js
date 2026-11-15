@@ -6,6 +6,7 @@
 //   S.wbWater = { [iso]: { ml, _ts } }    water drunk that day.
 //
 //   Goals = { kcal: { min?, max? }, kcalRest?: { min?, max? }, maint?, protein?: { min?, max? },
+//             carbs?: { min?, max? }, fat?: { min?, max? } (g),
 //             perKg?: { min?, max?, w }, water?: { min?, max? } (ml), glass? (ml), quality?, _ts }
 //
 // `kcal` is the target on a training day and on any day when there is no `kcalRest`. A day counts
@@ -44,6 +45,8 @@ export function readGoals(e) {
   const rest = readRange(e.kcalRest, 500, 10000); if (rest) out.kcalRest = rest
   const maint = num(e.maint, 800, 10000); if (maint != null) out.maint = Math.round(maint)
   const protein = readRange(e.protein, 1, 1000); if (protein) out.protein = protein
+  const carbs = readRange(e.carbs, 1, 1500); if (carbs) out.carbs = carbs
+  const fat = readRange(e.fat, 1, 500); if (fat) out.fat = fat
   if (isMap(e.perKg)) {
     const r = readRange(e.perKg, 0.1, 5), w = num(e.perKg.w, 20, 400)
     if (r && w) out.perKg = { ...r, w }
@@ -154,7 +157,7 @@ export function dayNutrition(S, iso, { today, trained } = {}) {
   const target = kcalTarget(goals, training)
   const water = waterOn(S, iso)
   return {
-    kcal: tot.kcal, protein: tot.protein, count: tot.count, foods: tot.foods, suppKcal: tot.suppKcal, water,
+    kcal: tot.kcal, protein: tot.protein, carbs: tot.carbs, fat: tot.fat, count: tot.count, foods: tot.foods, suppKcal: tot.suppKcal, water,
     goals, training, target,
     status: tot.count ? rangeStatus(tot.kcal, target) : null,
     deficit: goals?.maint && tot.count ? goals.maint - tot.kcal : null,

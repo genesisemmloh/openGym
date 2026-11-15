@@ -403,6 +403,30 @@ paths:
         '401': { description: Not signed in. }
         '429': { description: Too many searches. }
         '502': { description: The food service did not answer. }
+  /api/food/code:
+    get:
+      tags: [meta]
+      operationId: foodByCode
+      summary: One food by its barcode (Wellbeing, fork)
+      description: |
+        Asks Open Food Facts for the product with this barcode (EAN-13, EAN-8, UPC-A), on the
+        signed-in user's behalf. Only the digits leave the server. `product` is null when the code
+        is unknown. Shares the search's cache and its 20 a minute.
+      parameters:
+        - { name: c, in: query, required: true, schema: { type: string, pattern: '^[0-9]{8,14}$' } }
+      responses:
+        '200':
+          description: The product, or null.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product: { type: object, nullable: true }
+        '400': { description: Not a barcode. }
+        '401': { description: Not signed in. }
+        '429': { description: Too many searches. }
+        '502': { description: The food service did not answer. }
   /api/group:
     get:
       tags: [meta]

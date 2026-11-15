@@ -12,15 +12,17 @@ import {
   moodOf, withMood, symptomList, symptomsOf, withSymptoms, nextSeverity, withOwnSymptom,
   habitList, withHabitDef, habitsDoneOn, withHabitToggled, HABIT_DEFAULTS, SYMPTOM_LABEL, hiddenSymptoms, withSymptomShown,
   SUPP_IDEAS, DOSE_MAX, TIMES_MAX, DOSE_UNITS, UNIT_LABEL, doseText, suppList, withSuppDef, suppCountsOn, withSuppTap,
-  foodsOn, withFood, kcalFor, recentFoods, shiftDay, periodRange, shiftPeriod,
+  foodsOn, withFood, withFoodsCopied, kcalFor, recentFoods, shiftDay, periodRange, shiftPeriod,
   favFoods, isFavFood, withFav, myFoodsMatching,
 } from '../lib/wellbeing.js'
 import { rangeRows, daysBetween, monthSummary, monthInsights, trainedDays } from '../lib/wellbeing-insights.js'
 import {
-  dayNutrition, periodNutrition, goalsOn, withGoals, waterOn, applyWater, glassOf, waterAim, GLASS_ML,
+  dayNutrition, periodNutrition, goalsOn, withGoals, waterOn, applyWater, glassOf, waterAim, GLASS_ML, rangeStatus,
   weightKg, proteinFromKg, maintEstimate,
 } from '../lib/nutrition.js'
-import { searchFoods } from '../lib/food-search.js'
+import { searchFoods, lookupCode } from '../lib/food-search.js'
+import { scanCode, webScanner, MODULE_MISSING } from '../lib/scan.js'
+import CameraScan from '../components/CameraScan.jsx'
 import { searchBasic } from '../lib/basic-foods.js'
 import './Wellbeing.css'
 
@@ -195,6 +197,17 @@ function GoalBar({ v, r, status }) {
   return <div className={'wb-bar' + (status === 'over' ? ' over' : status === 'in' ? ' in' : '')}><span style={{ width: Math.min(100, Math.round(v / top * 100)) + '%' }} /></div>
 }
 
+/** One macro of the day: grams so far, the goal if there is one, and a bar. Hidden with neither. */
+function MacroRow({ label, v, r, overOk = false }) {
+  if (v == null && !r) return null
+  const st = rangeStatus(v ?? 0, r)
+  return <div className="wb-macro">
+    <span>{label}</span>
+    <span className="wb-macro-v">{nf(v ?? 0)} g{r ? <span className="dim"> / {rangeText(r)} g</span> : null}</span>
+    {r && <GoalBar v={v ?? 0} r={r} status={st === 'over' && overOk ? 'in' : st} />}
+  </div>
+}
+
 function FoodCard({ S, day }) {
   const today = todayISO()
   const foods = foodsOn(S, day)
@@ -208,7 +221,7 @@ function FoodCard({ S, day }) {
   return <section className="card wb-card">
     <h2 className="wb-h"><Icon name="flame" />{t('Food')}
       {g?.kcalRest && <span className={'wb-daykind' + (n.training ? ' tr' : '')}>{n.training ? t('Training day') : t('Rest day')}</span>}
-      <button className="iconbtn wb-h-btn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" /></button>
+      <button type="button" className="chip nocap wb-h-btn wb-goalbtn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" />{t('Goals')}</button>
     </h2>
     <div className="wb-kcal">
       <span className="wb-kcal-n">{nf(n.kcal)}</span>
@@ -221,11 +234,9 @@ function FoodCard({ S, day }) {
       <span className="wb-deficit-n">{n.deficit >= 0 ? t('{0} kcal deficit', nf(n.deficit)) : t('{0} kcal surplus', nf(-n.deficit))}</span>
       <span className="small dim">{day === today ? t('so far, against {0} kcal maintenance', nf(g.maint)) : t('against {0} kcal maintenance', nf(g.maint))}</span>
     </div>}
-    {(n.protein != null || g?.protein) && <div className="wb-macro">
-      <span>{t('Protein')}</span>
-      <span className="wb-macro-v">{n.protein ?? 0} g{g?.protein ? <span className="dim"> / {rangeText(g.protein)} g</span> : null}</span>
-      {g?.protein && <GoalBar v={n.protein ?? 0} r={g.protein} status={n.proteinStatus === 'over' ? 'in' : n.proteinStatus} />}
-    </div>}
+    <MacroRow label={t('Protein')} v={n.protein} r={g?.protein} overOk />
+    <MacroRow label={t('Carbohydrates')} v={n.carbs} r={g?.carbs} />
+    <MacroRow label={t('Fat')} v={n.fat} r={g?.fat} />
     {!g && <button type="button" className="chip nocap add wb-setgoals" onClick={() => goalsSheet()}><Icon name="target" />{t('Set your calorie, protein and water goals')}</button>}
     {g?.quality && <div className="small dim wb-quality"><Icon name="lightbulb" />{g.quality}</div>}
     {MEALS.map(meal => {
@@ -240,7 +251,7 @@ function FoodCard({ S, day }) {
         </div>)}
       </div>
     })}
-    <Button variant="primary" icon="plus" className="wb-add" onClick={() => foodSheet(day)}>{t('Add food')}</Button>
+    <Button variant="primary" icon="plus" className="wb-add wb-compact" onClick={() => foodSheet(day)}>{t('Add food')}</Button>
   </section>
 }
 
@@ -279,7 +290,7 @@ function WaterCard({ S, day }) {
   const set = v => save(s => { applyWater(s, day, v, today) })
   return <section className="card wb-card">
     <h2 className="wb-h"><Icon name="drop" />{t('Water')}
-      <button className="iconbtn wb-h-btn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" /></button>
+      <button type="button" className="chip nocap wb-h-btn wb-goalbtn" onClick={() => goalsSheet()} aria-label={t('Nutrition goals')}><Icon name="target" />{t('Goals')}</button>
     </h2>
     <div className="wb-kcal">
       <span className="wb-kcal-n">{litres(ml)} L</span>
@@ -295,7 +306,7 @@ function WaterCard({ S, day }) {
     </div>
     <div className="wb-water-btns">
       <Button variant="tinted" icon="minus" disabled={ml <= 0} onClick={() => set(Math.max(0, ml - glass))} aria-label={t('One glass less')} />
-      <Button variant="tinted" icon="plus" onClick={() => set(ml + glass)}>{t('Glass, {0} ml', glass)}</Button>
+      <Button variant="tinted" icon="plus" className="wb-compact" onClick={() => set(ml + glass)}>{t('Glass, {0} ml', glass)}</Button>
     </div>
   </section>
 }
@@ -329,6 +340,8 @@ function GoalsSheet({ close }) {
   const [pMode, setPMode] = useState(cur.perKg ? 'kg' : 'g')
   const [protein, setProtein] = useState(cur.protein || {})
   const [perKg, setPerKg] = useState(cur.perKg || { w: w0 })
+  const [carbs, setCarbs] = useState(cur.carbs || {})
+  const [fat, setFat] = useState(cur.fat || {})
   const [water, setWater] = useState(toL(cur.water))
   const [glass, setGlass] = useState(cur.glass ?? GLASS_ML)
   const [quality, setQuality] = useState(cur.quality || '')
@@ -338,7 +351,7 @@ function GoalsSheet({ close }) {
   const saveIt = () => {
     const goals = {
       kcal, ...(split ? { kcalRest: rest } : {}), maint,
-      protein: pMode === 'kg' ? fromKg : protein, ...(pMode === 'kg' ? { perKg } : {}),
+      protein: pMode === 'kg' ? fromKg : protein, ...(pMode === 'kg' ? { perKg } : {}), carbs, fat,
       water: fromL(water), glass, quality,
     }
     save(s => { s.wbGoals = withGoals(s.wbGoals, today, goals) })
@@ -367,6 +380,10 @@ function GoalsSheet({ close }) {
           <label><span>{t('Body weight')}</span><span className="wb-in"><NumberField nullable value={w ?? null} onChange={v => setPerKg({ ...perKg, w: v })} /><i>kg</i></span></label>
           {(fromKg.min || fromKg.max) && <div className="small dim">{t('That is {0} g a day.', rangeText(fromKg))}</div>}
         </>}
+
+      <div className="wb-gsec">{t('Carbohydrates and fat (optional)')}</div>
+      <label><span>{t('Carbohydrates')}</span><RangeField value={carbs} onChange={setCarbs} unit="g" label={t('Carbohydrates')} /></label>
+      <label><span>{t('Fat')}</span><RangeField value={fat} onChange={setFat} unit="g" label={t('Fat')} /></label>
 
       <div className="wb-gsec">{t('Water')}</div>
       <label><span>{t('Water')}</span><RangeField value={water} onChange={setWater} unit="L" decimal label={t('Water')} /></label>
@@ -542,6 +559,8 @@ function ListSheet({ kind, close }) {
 }
 
 
+const MACROS = ['protein', 'carbs', 'fat']
+
 const defaultMeal = () => {
   const h = new Date().getHours()
   return h < 11 ? 'breakfast' : h < 16 ? 'lunch' : h < 21 ? 'dinner' : 'snack'
@@ -549,12 +568,40 @@ const defaultMeal = () => {
 
 function foodSheet(day) { ui().openSheet(close => <FoodSheet day={day} close={close} />, { wide: true }) }
 
+/**
+ * Scan a food's barcode and look it up on Open Food Facts. The camera opens over the food sheet;
+ * what it finds comes back through `onPick` as the form's food, or as an empty form with the code
+ * when the product is unknown. In the apps it is ML Kit's scanner, in a browser our own camera sheet.
+ */
+async function scanFood({ lang, onPick }) {
+  const found = async code => {
+    const v = String(code?.value || '').trim()
+    if (!/^\d{8,14}$/.test(v)) { ui().toast(t('That is not a food barcode. Try again or search by name.')); return }
+    try {
+      const p = await lookupCode(v, lang)
+      if (p) { onPick(asPick(p, 'off')); return }
+      ui().toast(t('This product is not in Open Food Facts yet. Enter it by hand.'))
+      onPick({ name: '', kcal100: null, grams: null, kcal: null, code: v, src: 'manual', own: true })
+    } catch { ui().toast(t('The product search did not answer. Pick a basic food above or add it by hand.')) }
+  }
+  const camera = () => ui().openSheet(close => <CameraScan importPhoto onImportError={msg => ui().toast(msg)} onCancel={close}
+    onFound={code => { close(); found(code) }} />)
+  if (await webScanner()) { camera(); return }
+  try {
+    const code = await scanCode()
+    if (code) await found(code)
+  } catch (e) {
+    if (e && e.message === MODULE_MISSING) { camera(); return }
+    ui().toast(t('The camera could not start. Search by name instead.'))
+  }
+}
+
 /** A food as the form takes it: per 100 g with grams, or a fixed portion in kcal. */
 const asPick = (f, src) => ({
   name: f.brand ? `${f.name} (${f.brand})` : f.name,
-  kcal100: f.kcal100 ?? null, protein100: f.protein100 ?? null,
+  kcal100: f.kcal100 ?? null, protein100: f.protein100 ?? null, carbs100: f.carbs100 ?? null, fat100: f.fat100 ?? null,
   grams: f.grams || f.serving || (f.kcal100 != null ? 100 : null),
-  kcal: f.kcal ?? null, protein: f.protein ?? null,
+  kcal: f.kcal ?? null, protein: f.protein ?? null, carbs: f.carbs ?? null, fat: f.fat ?? null,
   code: f.code || null, src: src || f.src || 'manual',
 })
 
@@ -565,7 +612,7 @@ function FavStar({ S, food }) {
   const toggle = e => {
     e.stopPropagation()
     const p = asPick(food)
-    save(s => { s.wbFoodFavs = withFav(s.wbFoodFavs, name, on ? null : { ...p, protein100: p.protein100 ?? undefined }) })
+    save(s => { s.wbFoodFavs = withFav(s.wbFoodFavs, name, on ? null : p) })
   }
   return <button type="button" className={'iconbtn wb-star' + (on ? ' on' : '')} onClick={toggle} aria-pressed={on}
     aria-label={on ? t('Remove from favourites') : t('Add to favourites')}><Icon name={on ? 'starFill' : 'star'} /></button>
@@ -582,6 +629,29 @@ function FoodRow({ S, food, sub, kcal, onPick }) {
 
 const kcalLine = f => (f.kcal100 != null ? <>{f.kcal100}<span className="small dim"> kcal/100 g</span></> : <>{f.kcal}<span className="small dim"> kcal</span></>)
 const subLine = f => [f.grams ? `${f.grams} g` : '', f.protein100 != null ? t('{0} g protein', f.protein100) + ' /100 g' : f.protein != null ? t('{0} g protein', f.protein) : ''].filter(Boolean).join(' · ')
+
+/** "Same as yesterday": the chosen meal of the day before, or all of it, logged again with one tap. */
+function RepeatFoods({ S, day, meal, close }) {
+  const prev = shiftDay(day, -1)
+  const all = foodsOn(S, prev)
+  if (!all.length) return null
+  const same = all.filter(f => f.meal === meal)
+  const kcalOf = xs => nf(xs.reduce((a, f) => a + f.kcal, 0))
+  const copy = (xs, label) => {
+    save(s => { s.wbFood = withFoodsCopied(s.wbFood, xs, day, { newId: () => 'f-' + uid() }) })
+    ui().toast(t('{0} added', label))
+    close()
+  }
+  return <>
+    <div className="small dim wb-sub wb-sec"><Icon name="history" />{t('Same as yesterday')}</div>
+    <div className="chips wb-repeat">
+      {same.length > 0 && <button type="button" className="chip nocap add" onClick={() => copy(same, t(MEAL_LABEL[meal]))}>
+        <Icon name="plus" />{t(MEAL_LABEL[meal])}<span className="wb-dose-l">{t('{0} foods', same.length)} · {kcalOf(same)} kcal</span></button>}
+      <button type="button" className="chip nocap add" onClick={() => copy(all, t('The whole day'))}>
+        <Icon name="plus" />{t('The whole day')}<span className="wb-dose-l">{t('{0} foods', all.length)} · {kcalOf(all)} kcal</span></button>
+    </div>
+  </>
+}
 
 function FoodSheet({ day, close }) {
   const S = useStore(s => s.S)
@@ -614,8 +684,10 @@ function FoodSheet({ day, close }) {
     <Segmented className="wb-meals" value={meal} onChange={setMeal} options={MEALS.map(m => ({ value: m, label: t(MEAL_LABEL[m]) }))} />
     <form className="wb-search" onSubmit={e => { e.preventDefault(); search() }}>
       <SearchField value={q} onChange={e => { setQ(e.target.value); setResults(null); setErr('') }} onClear={() => { setQ(''); setResults(null) }} placeholder={t('Search a food, like “oatmeal”')} aria-label={t('Search a food')} />
+      <Button variant="tinted" icon="barcode" className="wb-scan" onClick={() => scanFood({ lang, onPick: setPick })} aria-label={t('Scan a barcode')} />
     </form>
 
+    {!typing && <RepeatFoods S={S} day={day} meal={meal} close={close} />}
     {!typing && <>
       {favs.length > 0 && <>
         <div className="small dim wb-sub wb-sec"><Icon name="starFill" />{t('Favourites')}</div>
@@ -657,29 +729,36 @@ function FoodForm({ S, day, meal, setMeal, pick, back, close }) {
   const [grams, setGrams] = useState(pick.grams ?? null)
   const [kcal100, setKcal100] = useState(pick.kcal100 ?? null)
   const [kcalHand, setKcalHand] = useState(pick.kcal100 == null ? pick.kcal ?? null : null)
-  const [protein, setProtein] = useState(pick.protein100 == null ? pick.protein ?? null : null)
+  // Macros the food brings per 100 g are worked out from the grams; the others can be typed in.
+  const m100 = { protein: pick.protein100 ?? null, carbs: pick.carbs100 ?? null, fat: pick.fat100 ?? null }
+  const [hand, setHand] = useState(() => Object.fromEntries(MACROS.map(k => [k, m100[k] == null ? pick[k] ?? null : null])))
   // Something typed in by hand is kept as a favourite unless you say no; anything else keeps its star.
   const [fav, setFav] = useState(pick.own ? true : isFavFood(S, pick.name))
   const per100 = kcal100 != null
   const kcal = per100 ? kcalFor(kcal100, grams) : kcalHand
-  const prot = pick.protein100 != null && grams ? Math.round(pick.protein100 * grams / 10) / 10 : protein
+  const macro = k => (m100[k] != null ? (grams ? Math.round(m100[k] * grams / 10) / 10 : null) : hand[k])
   const ok = name.trim() && kcal != null && kcal >= 0
   const add = () => {
     const n = name.trim()
+    const got = Object.fromEntries(MACROS.map(k => [k, macro(k)]).filter(([, v]) => v != null))
     save(s => {
       s.wbFood = withFood(s.wbFood, 'f-' + uid(), {
-        d: day, name: n, kcal, meal, src: pick.src,
-        ...(grams ? { grams } : {}), ...(per100 ? { kcal100 } : {}), ...(prot != null ? { protein: prot } : {}), ...(pick.code ? { code: pick.code } : {}),
+        d: day, name: n, kcal, meal, src: pick.src, ...got,
+        ...(grams ? { grams } : {}), ...(per100 ? { kcal100 } : {}), ...(pick.code ? { code: pick.code } : {}),
       })
       const was = isFavFood(s, n)
+      // A favourite per 100 g keeps each macro per 100 g too (from the food, or from what was typed for these grams).
+      const per100Of = k => (m100[k] != null ? m100[k] : hand[k] != null && grams ? Math.round(hand[k] / grams * 1000) / 10 : null)
       if (fav) s.wbFoodFavs = withFav(s.wbFoodFavs, n, per100
-        ? { kcal100, grams, src: pick.src, ...(pick.protein100 != null ? { protein100: pick.protein100 } : protein != null && grams ? { protein100: Math.round(protein / grams * 1000) / 10 } : {}) }
-        : { kcal, grams, src: pick.src, ...(prot != null ? { protein: prot } : {}) })
+        ? { kcal100, grams, src: pick.src, ...Object.fromEntries(MACROS.map(k => [k + '100', per100Of(k)]).filter(([, v]) => v != null)) }
+        : { kcal, grams, src: pick.src, ...got })
       else if (was) s.wbFoodFavs = withFav(s.wbFoodFavs, n, null)
     })
     ui().toast(t('{0} added', n))
     close()
   }
+  const macroLabel = { protein: t('Protein (optional)'), carbs: t('Carbohydrates (optional)'), fat: t('Fat (optional)') }
+  const short = { protein: v => t('{0} g protein', v), carbs: v => t('{0} g carbs', v), fat: v => t('{0} g fat', v) }
   return <>
     <h3>{t('Add food')}</h3>
     <Segmented className="wb-meals" value={meal} onChange={setMeal} options={MEALS.map(m => ({ value: m, label: t(MEAL_LABEL[m]) }))} />
@@ -689,9 +768,12 @@ function FoodForm({ S, day, meal, setMeal, pick, back, close }) {
       {per100
         ? <label><span>{t('Per 100 g')}</span><span className="wb-in"><NumberField nullable decimal={false} value={kcal100} onChange={setKcal100} /><i>kcal</i></span></label>
         : <label><span>{t('Calories')}</span><span className="wb-in"><NumberField nullable decimal={false} value={kcalHand} onChange={setKcalHand} /><i>kcal</i></span></label>}
-      {pick.protein100 == null && <label><span>{t('Protein (optional)')}</span><span className="wb-in"><NumberField nullable value={protein} onChange={setProtein} /><i>g</i></span></label>}
+      {MACROS.filter(k => m100[k] == null).map(k => <label key={k}><span>{macroLabel[k]}</span>
+        <span className="wb-in"><NumberField nullable value={hand[k]} onChange={v => setHand(h => ({ ...h, [k]: v }))} /><i>g</i></span></label>)}
     </div>
-    <div className="wb-total">{kcal != null ? `${kcal} kcal` : '–'}{prot != null ? ` · ${t('{0} g protein', prot)}` : ''}</div>
+    <div className="wb-total">{kcal != null ? `${kcal} kcal` : '–'}</div>
+    {MACROS.some(k => macro(k) != null) && <div className="small dim wb-total-m">
+      {MACROS.filter(k => macro(k) != null).map(k => short[k](fmt1(macro(k)))).join(' · ')}</div>}
     <label className="wb-favrow"><Check checked={fav} onChange={setFav} label={t('Save to favourites')} /><span onClick={() => setFav(!fav)}>{t('Save to favourites')}</span></label>
     <Button variant="primary" disabled={!ok} onClick={add}>{t('Add')}</Button>
     <div style={{ height: 8 }} />
